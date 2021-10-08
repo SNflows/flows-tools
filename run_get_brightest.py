@@ -15,15 +15,6 @@ from flows.plots import plot_image
 from astropy.visualization import ZScaleInterval
 from reproject import reproject_interp
 
-# Set style using seaborn for prettier plots
-sns.set()
-
-## Manually enter targetid here if running in notebook
-## Else code will parse from command line arguments.
-targetid = 1349
-default_pars = (None, targetid, 0.0, 0.0)  # Rotation, tid, alpha, delta,
-skip_prop = True
-
 def is_notebook():
 	'''helper function for running the script inside a notebook using default pars'''
 	try:
@@ -85,7 +76,38 @@ def get_flows_info(tid):
 
 	return ref, refcoords, tar, target_info, simbad, simbad_coords, ra_tar, dec_tar
 
-class Hawki:
+class Instrument:
+	"""Instrument class"""
+	# Rotation, tid, alpha, delta,
+	rotation = 0.0
+	rotate = False
+	alpha = 0.0
+	delta = 0.0
+	skip_shift = True
+
+	def __init__(self):
+		pass
+
+	def point(self,rot=self.rotation,alpha=self.alpha,delta=self.delta):
+		"""point telescope to rot=rotation in degrees, alpha and delta offset in arcseconds"""
+		self.rotation = rot
+		self.alpha = alpha
+		self.delta = delta
+		self.set_rotation()
+		self.set_shift()
+
+	def set_rotation(self):
+		if self.rotation = 0.0:
+			self.rotate = False
+		elif self.rotation > 0.0:
+			self.rotate = True
+
+	def set_shift(self):
+		self.skip_shift = (np.array((self.alpha, self.delta)) == 0.0).all()  # skip shift if alpha and delta 0
+
+
+
+class Hawki(Instrument):
 	"""Class for storing the hardcoded chip and detector information of a VLT HAWKI pointing"""
 
 	chip1_center = 3.75 * u.arcmin + 15 * u.arcsecond  # This is the distance to Chip 1 center from Field center.
@@ -93,25 +115,26 @@ class Hawki:
 	chip1_hw = 3.5 * u.arcminute  # chip1 field height width
 
 	def __init__(self,ra,dec):
-		self.tar_ra = ra * u.deg
-		self.tar_dec = dec * u.deg
 		self.ra = ra * u.deg
 		self.dec = dec * u.deg
+		self.set_target(ra,dec)
 
 	def default_point_chip1(self):
 		"""returns the CCD4 (chip1) ra and dec center given a pointing in ra dec"""
 		return self.ra + self.chip1_center, self.dec - self.chip1_center
 
+	def set_target(self, tar_ra, tar_dec):
+		self.tar_ra = ra * u.deg
+		self.tar_dec = dec * u.deg
 
 #	def get_HAWKI_chip_pars():
 
 
 
 if __name__ == '__main__':
-
 	# Parse input
-	rot, tid, shifta, shiftd = default_pars if is_notebook() else parse()
-	skip_shift = (np.array((shifta, shiftd)) == 0.0).all()  # skip shift if alpha and delta 0
+	rot, tid, shifta, shiftd = parse()
+	#skip_shift = (np.array((shifta, shiftd)) == 0.0).all()  # skip shift if alpha and delta 0
 
 	# define useful values and get target info and catalog.
 	today = Time(datetime.datetime.today())
@@ -199,6 +222,8 @@ if __name__ == '__main__':
 	print('Brightest star has H-mag = {0:.1f}'.format(np.round(bright_stars.min(), 1)))
 
 	# Plot
+	# Set style using seaborn for prettier plots
+	sns.set()
 	zscale = ZScaleInterval()
 	vmin, vmax = zscale.get_limits(image.data.flat)
 	sns.set_theme(style='ticks', font_scale=2.5)
