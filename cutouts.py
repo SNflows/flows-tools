@@ -8,6 +8,7 @@ from pathlib import Path
 import argparse
 import typing
 from astropy.visualization.interval import BaseInterval
+import numpy as np
         
 """Expects fits compatible images saved with a single file extension (no .fits.gz), 
 Makes a cutout based on values of y and x and recomputes wcs,
@@ -25,26 +26,25 @@ class Image:
         self.get_class()
         self.data = image.data
         self.header = image.header
-        self.wcs_init = self.update_wcs()
+        self.wcs_init = WCS(self.image.header)
+        if self.isprimary:
+            self.wcs = self.wcs_init
         
     def get_class(self):
         if isinstance(self.image,fits.ImageHDU):
             self.ImType = fits.ImageHDU
+            self.isprimary = False
         elif isinstance(self.image,fits.PrimaryHDU):
             self.ImType = fits.PrimaryHDU
+            self.isprimary = True
         else: raise(TypeError)
         
-    def update_wcs(self):
-        wcs = WCS(self.image.header)
-        self.wcs = wcs
-        return wcs
-    
     #  @TODO: Move cutouts to new class.
     def cutout(self,y,x):
         self.cut = Cutout2D(
             self.data,
-            position=self.wcs_init.wcs.crpix,
-            wcs=self.wcs_init,
+            position=self.wcs.wcs.crpix,
+            wcs=self.wcs,
             size=(y,x)
         )
         
@@ -112,10 +112,22 @@ def main():
     
     hdul = fits.open(curr)
     new_hdul = fits.HDUList()
+
+    # Find primary HDU and use its wcs
+    primary_index = np.argwhere([isinstance(i,fits.PrimaryHDU) for i in hdul]).flatten()
+    if primary_index.size<=0 or primary_index.size>1:
+        raise ValueError('WCS to use could not be set as there were less than or greater than one Primary HDUs \
+                         This should never be the case, please check your fits image!')
+    primary_image = Image(hdul[primary_index[0]])
+    primary_image.make_cutout(args.y,args.x)
+    new_hdul.append(primary_image.cut_image)
     
     for i in hdul:
-        if isinstance(i,fits.ImageHDU) or isinstance(i,fits.PrimaryHDU):
+        if isinstance(i,fits.PrimaryHDU):
+            continue
+        elif isinstance(i,fits.ImageHDU):
             img = Image(i)
+            img.wcs = primary_image.wcs_init
             img.make_cutout(args.y,args.x)
             new_hdul.append(img.cut_image)
         else: #  Mostly expecting extension to be a binaryfitstable.  
@@ -133,6 +145,7 @@ def main():
     new_hdul.writeto(str(savepath), output_verify='exception', 
                      overwrite=args.overwrite, checksum=False)
     print(f'saved to: {savepath}')
+    
     
 if __name__== '__main__':
     main()
