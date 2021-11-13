@@ -66,7 +66,6 @@ def get_flows_info(tid):
 	ra_tar = tar['ra'].data[0]
 	dec_tar = tar['decl'].data[0]
 
-
 	# Get simbad catalog
 	target_info['skycoord'] = SkyCoord(target_info['ra'] * u.deg, target_info['decl'] * u.deg)
 	simbad = catalogs.query_simbad(target_info['skycoord'])
@@ -88,7 +87,7 @@ class Instrument:
 	def __init__(self):
 		pass
 
-	def point(self,rot=self.rotation,alpha=self.alpha,delta=self.delta):
+	def point(self, rot=rotation, alpha=alpha, delta=delta):
 		"""point telescope to rot=rotation in degrees, alpha and delta offset in arcseconds"""
 		self.rotation = rot
 		self.alpha = alpha
@@ -105,7 +104,20 @@ class Instrument:
 	def set_shift(self):
 		self.skip_shift = (np.array((self.alpha, self.delta)) == 0.0).all()  # skip shift if alpha and delta 0
 
+	def offset(self):
+		self.alpha *u.arcsecond + default_offset
 
+
+	@staticmethod
+	def _query_2mass_image(ra, dec, pixels=2500, radius=50):
+		out = SkyView.get_images(position='{}, {}'.format(ra, dec),
+								 survey='2MASS-H', pixels=str(pixels),
+								 coordinates='J2000', scaling='Linear', radius=radius * u.arcmin)
+		return out[0][0]
+
+
+	#def get_wcs(self,image):
+	#		return WCS(image.header)
 
 class Hawki(Instrument):
 	"""Class for storing the hardcoded chip and detector information of a VLT HAWKI pointing"""
@@ -113,19 +125,56 @@ class Hawki(Instrument):
 	chip1_center = 3.75 * u.arcmin + 15 * u.arcsecond  # This is the distance to Chip 1 center from Field center.
 	field_hw = 7.5 * u.arcminute  # full field height width
 	chip1_hw = 3.5 * u.arcminute  # chip1 field height width
+	chip1_offset = 112.5 * u.arcsecond # default pointing offset of Hawki.
 
-	def __init__(self,ra,dec):
+
+	def __init__(self, ra, dec):
+		super().__init__()  # is this needed?
 		self.ra = ra * u.deg
 		self.dec = dec * u.deg
-		self.set_target(ra,dec)
+		self.set_target(ra, dec)
+		self.get_corners()  # set the corner xy points.
+		#self.image = self.query_2mass_image(ra,dec)
+		#self.wcs_target = self.get_wcs(self.image)
 
 	def default_point_chip1(self):
 		"""returns the CCD4 (chip1) ra and dec center given a pointing in ra dec"""
 		return self.ra + self.chip1_center, self.dec - self.chip1_center
 
 	def set_target(self, tar_ra, tar_dec):
-		self.tar_ra = ra * u.deg
-		self.tar_dec = dec * u.deg
+		self.tar_ra = tar_ra * u.deg
+		self.tar_dec = tar_dec * u.deg
+		self.tar_coords = SkyCoord(self.tar_ra, self.tar_dec)
+
+	def get_corners(self):
+		self.chip1_corners = Corner(self.ra-self.chip1_center, self.dec+self.chip1_center, self.chip1_hw)
+		self.field_corners = Corner(self.ra, self.dec, self.field_hw)
+
+	def get_image_wcs(self,pixels=2500,radius=50):
+		self.image = self._query_2mass_image(self.ra,self.dec,pixels,radius)
+		self.wcs = WCS(self.image.header)
+		return self.wcs
+
+class Corner:
+
+	def __init__(self,x,y,hw):
+		self.x = x
+		self.y = y
+		self.hw = hw
+		self.corner_xy = self.set_corners()
+		self.corners = self.process_corner()
+
+	def set_corners(self):
+		"""Get corners of a rectangle for a given ra dec and side length
+		:return: list[corner 1, corner 2, ..]
+		"""
+		return [(self.x - self.hw, self.y - self.hw), (self.x - self.hw, self.y + self.hw),
+				(self.x + self.hw, self.y + self.hw), (self.x + self.hw, self.y - self.hw)]
+
+	def process_corner(self):
+		'''Given corners of a rectangle defined as astropy Quantity objects, return it as an np array of floats'''
+		_points = [u.quantity.Quantity(corner) for corner in self.corner_xy]
+		return np.array(_points)
 
 #	def get_HAWKI_chip_pars():
 
@@ -146,42 +195,46 @@ if __name__ == '__main__':
 	chip1_center, field_hw, chip1_hw = hawki.chip1_center, hawki.field_hw, hawki.chip1_hw
 
 	# Get corners of Chip 1 and full-field centered, where full field is centered at ra,dec.
-	corners = get_corners(ra, dec, field_hw)
-	chip1 = get_corners(ra - chip1_center,
-						dec + chip1_center, chip1_hw)
+	#corners = get_corners(ra, dec, field_hw)
+	#chip1 = get_corners(ra - chip1_center,
+	#					dec + chip1_center, chip1_hw)
 
 	# Process to be easily plottable
-	chip1 = process_corner(chip1)
-	corners = process_corner(corners)
+	#chip1 = process_corner(chip1)
+	#corners = process_corner(corners)
 
-	out = SkyView.get_images(position='{}, {}'.format(tar['ra'].data[0], tar['decl'].data[0]),
-							 survey='2MASS-H', pixels='2500',
-							 coordinates='J2000', scaling='Linear', radius=50 * u.arcmin)
-	image = out[0][0]
-
-	wcs_H = WCS(image.header)
-	wcs_H2 = wcs_H.deepcopy()
+	wcs_H = hawki.get_image_wcs()
 	ref_pix = wcs_H.all_world2pix(ref['ra'], ref['decl'], 0)
+
+		# wcs_H = WCS(image.header)
+
 
 	# Rotation of image.
 	# This is disabled for now, we rotate the region boxes instead!
-	if rot:
-		rot_angle = rot
-	else:
-		rot_angle = 0.0
-	theta = np.radians(0.0)
-	rot_matrix = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-	wcs_H2.wcs.pc = rot_matrix
-	array, footprint = reproject_interp((image.data, wcs_H), wcs_H2, shape_out=image.data.shape)
-	wcs_H = wcs_H2
+	#wcs_H2 = wcs_H.deepcopy()
+	#if rot:
+	#	rot_angle = rot
+	#else:
+	#	rot_angle = 0.0
+	#theta = np.radians(0.0)
+	#rot_matrix = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+	#wcs_H2.wcs.pc = rot_matrix
+	#array, footprint = reproject_interp((image.data, wcs_H), wcs_H2, shape_out=image.data.shape)
+	#wcs_H = wcs_H2
 
 	# Regions
-	offset_hawki = 112.5 * u.arcsecond
-	if skip_shift:
-		offset_alpha, offset_delta = offset_hawki, offset_hawki
-		new_center_coord = target_info['skycoord']
-	else:
+	#offset_hawki = 112.5 * u.arcsecond
+	#if skip_shift:
+	#	offset_alpha, offset_delta = offset_hawki, offset_hawki
+	#	new_center_coord = target_info['skycoord']
+	#	new_center_coords = self.tar_coords
+	#else:
+	#if not hawki.skip_shift and hawki.rotate:
+	hawki.point(rot,shifta,shifta)
+
+
 		offset_alpha, offset_delta = offset_hawki + shifta * u.arcsecond, offset_hawki + shiftd * u.arcsecond
+		hawki.point(rot, shifta, shiftd)
 		new_center_coord = target_info['skycoord'].spherical_offsets_by(-shifta * u.arcsecond, -shiftd * u.arcsecond)
 
 	chip1_center_true = 3.75 / 2 * u.arcminute + 15 * u.arcsecond  # This is the distance to Chip 1 center from Field center.
