@@ -79,7 +79,10 @@ class Image(AbstractImage):
 
     def fill_cut_image_header(self):
         for key in self.missing_keys:
-            self.cut_image.header[key] = self.header[key]
+            try:
+                self.cut_image.header[key] = self.header[key]
+            except ValueError:
+                print(f'Bad fits key: {key}')
 
     def make_cutout(self, y: int, x: int):
         """convenience function for making a cutout image and forward filling header"""
