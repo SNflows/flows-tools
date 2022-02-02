@@ -96,7 +96,7 @@ class Instrument:
 		self.set_shift()
 
 	def set_rotation(self):
-		if self.rotation = 0.0:
+		if self.rotation == 0.0:
 			self.rotate = False
 		elif self.rotation > 0.0:
 			self.rotate = True
