@@ -1,7 +1,7 @@
-from flows import api, load_config
+from tendrils import api
 from astropy.time import Time
 import datetime
-from flows import catalogs
+from catalogs import query_simbad
 from astropy.coordinates import SkyCoord
 import astropy.units as u
 import argparse
@@ -11,17 +11,9 @@ import seaborn as sns
 from astropy.wcs import WCS
 import regions
 from astroquery.skyview import SkyView
-from flows.plots import plot_image
+from plots import plot_image
 from astropy.visualization import ZScaleInterval
 from reproject import reproject_interp
-
-def is_notebook():
-	'''helper function for running the script inside a notebook using default pars'''
-	try:
-		__IPYTHON__
-		return True
-	except NameError:
-		return False
 
 
 def parse():
@@ -68,7 +60,7 @@ def get_flows_info(tid):
 
 	# Get simbad catalog
 	target_info['skycoord'] = SkyCoord(target_info['ra'] * u.deg, target_info['decl'] * u.deg)
-	simbad = catalogs.query_simbad(target_info['skycoord'])
+	simbad = query_simbad(target_info['skycoord'])
 
 	# propagte Simbad catalog coords to 2mass reference year
 	simbad_coords = simbad[1].apply_space_motion(new_obstime=Time(2000, format='decimalyear'))
@@ -187,7 +179,6 @@ if __name__ == '__main__':
 
 	# define useful values and get target info and catalog.
 	today = Time(datetime.datetime.today())
-	config = load_config()
 	ref, refcoords, tar, target_info, simbad, simbad_coords, ra_tar, dec_tar = get_flows_info(tid)
 
 	hawki = Hawki(ra_tar, dec_tar)
@@ -223,7 +214,7 @@ if __name__ == '__main__':
 	#wcs_H = wcs_H2
 
 	# Regions
-	#offset_hawki = 112.5 * u.arcsecond
+	offset_hawki = 112.5 * u.arcsecond
 	#if skip_shift:
 	#	offset_alpha, offset_delta = offset_hawki, offset_hawki
 	#	new_center_coord = target_info['skycoord']
@@ -233,9 +224,9 @@ if __name__ == '__main__':
 	hawki.point(rot,shifta,shifta)
 
 
-		offset_alpha, offset_delta = offset_hawki + shifta * u.arcsecond, offset_hawki + shiftd * u.arcsecond
-		hawki.point(rot, shifta, shiftd)
-		new_center_coord = target_info['skycoord'].spherical_offsets_by(-shifta * u.arcsecond, -shiftd * u.arcsecond)
+    offset_alpha, offset_delta = offset_hawki + shifta * u.arcsecond, offset_hawki + shiftd * u.arcsecond
+    hawki.point(rot, shifta, shiftd)
+    new_center_coord = target_info['skycoord'].spherical_offsets_by(-shifta * u.arcsecond, -shiftd * u.arcsecond)
 
 	chip1_center_true = 3.75 / 2 * u.arcminute + 15 * u.arcsecond  # This is the distance to Chip 1 center from Field center.
 	field_hw = 7.5 * u.arcminute  # full field height width
