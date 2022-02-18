@@ -2,6 +2,7 @@ import warnings
 from astropy.coordinates import SkyCoord, Angle
 from astroquery.simbad import Simbad
 import astropy.units as u
+from astroquery.skyview import SkyView
 
 
 def query_simbad(coo_centre, radius=24*u.arcmin):
@@ -74,6 +75,8 @@ def query_simbad(coo_centre, radius=24*u.arcmin):
     return results, simbad
 
 
-if __name__ == '__main__':
-    r, s = query_simbad(SkyCoord(ra=50*u.deg, dec=-20*u.deg, frame='icrs'))
-    print(r)
+def query_2mass_image(ra, dec, pixels=2500, radius=50):
+    out = SkyView.get_images(position='{}, {}'.format(ra, dec),
+                             survey='2MASS-H', pixels=str(pixels),
+                             coordinates='J2000', scaling='Linear', radius=radius * u.arcmin)
+    return out[0][0]
