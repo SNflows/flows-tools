@@ -3,9 +3,11 @@ from astropy.coordinates import SkyCoord, Angle
 from astroquery.simbad import Simbad
 import astropy.units as u
 from astroquery.skyview import SkyView
+from astropy.table import Table
+from typing import Optional
 
 
-def query_simbad(coo_centre, radius=24*u.arcmin):
+def query_simbad(coo_centre, radius=24*u.arcmin) -> tuple[Optional[Table], Optional[SkyCoord]]:
     """
     Query SIMBAD using cone-search around the position using astroquery.
     Parameters:
