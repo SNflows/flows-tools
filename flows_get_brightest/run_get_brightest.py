@@ -3,18 +3,17 @@ from abc import ABC, abstractmethod
 from tendrils import api
 from astropy.time import Time
 from astropy.table import Table
-from catalogs import query_simbad, query_2mass_image
+from .catalogs import query_simbad, query_2mass_image
 from astropy.coordinates import SkyCoord, ICRS
 import astropy.units as u
 from erfa import ErfaWarning
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 from astropy.wcs import WCS
 from astropy.wcs.utils import celestial_frame_to_wcs
 import regions
-from plots import plot_image
+from .plots import plot_image
 from astropy.visualization import ZScaleInterval
 from dataclasses import dataclass, field
 from typing import Union, Optional
@@ -295,7 +294,7 @@ class Plotter:
         pass
 
 
-if __name__ == '__main__':
+def main():
     # Parse input
     rot, tid, shifta, shiftd = parse()
 
@@ -311,3 +310,6 @@ if __name__ == '__main__':
 
     # Print brightest star in field and get list of bright stars.
     brightest_stars = obs.check_bright_stars(region=obs.regions[0])
+
+if __name__ == '__main__':
+    main()
