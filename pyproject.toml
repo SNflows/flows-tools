@@ -17,8 +17,7 @@ dependencies = [
     "numpy>=1.19.1",
     "regions",
     "astroquery>=0.4.5",
-    "matplotlib",
-    "bottleneck"]
+    "matplotlib"]
 
 [project.urls]
 Home = "https://github.com/SNflows/flows-tools/"

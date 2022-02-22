@@ -4,7 +4,6 @@ import astropy.visualization as viz
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-from bottleneck import allnan
 from matplotlib.ticker import MaxNLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -69,7 +68,7 @@ def plot_image(image, ax=None, scale='log', cmap=None, origin='lower', xlabel=No
     # Calculate limits of color scaling:
     interval = None
     if vmin is None or vmax is None:
-        if allnan(image):
+        if np.isnan(image).all():
             logger.warning("Image is all NaN")
             vmin = 0
             vmax = 1
