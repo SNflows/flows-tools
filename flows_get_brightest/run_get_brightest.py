@@ -189,6 +189,7 @@ class Plan:
     def __post_init__(self):
         self.shift = self.set_shift()
         self.rotate = self.set_rotation()
+        self._sanitize_quanity_input()
 
     def set_rotation(self) -> bool:
         if self.rotation == 0.0:
@@ -199,6 +200,12 @@ class Plan:
     def set_shift(self) -> bool:
         shift = (np.array((self.alpha, self.delta)) == 0.0).all()  # skip shift if alpha and delta 0
         return not shift
+
+    def _sanitize_quanity_input(self):
+        self.alpha = self.alpha << u.arcsec
+        self.delta = self.delta << u.arcsec
+        self.rotation = self.rotation << u.deg
+
 
 
 class Observer:
