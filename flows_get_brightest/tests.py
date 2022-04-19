@@ -1,7 +1,8 @@
-from flows_get_brightest.run_get_brightest import get_flows_observer, Observer
-from flows_get_brightest.auth import test_connection
-from flows_get_brightest.plots import make_finding_chart
+from .observer import get_flows_observer, Observer
+from .auth import test_connection
+from .plots import Plotter
 import pytest
+import astropy.units as u
 
 rot, tid, shifta, shiftd = 30, 8, 10, 10
 
@@ -22,23 +23,27 @@ def observer():
 
 
 def test_get_brightest(capsys, observer):
-    observer.get_brightest()
+    observer.check_bright_stars(region=observer.regions[0])
     captured = capsys.readouterr()
     assert "Brightest star has" in captured.out
 
 
 def test_plan(observer):
-    assert observer.plan.rotation == rot
-    assert observer.plan.shifta == shifta
-    assert observer.plan.shiftd == shiftd
+    assert observer.plan.rotation == rot * u.deg
+    assert observer.plan.alpha == shifta * u.arcsec
+    assert observer.plan.delta == shiftd * u.arcsec
+    assert observer.plan.shift is True
+    assert observer.plan.rotate is True
 
 
 def test_observer(observer):
     isinstance(observer, Observer)
 
 
+@pytest.mark.slow
 def test_make_finding_chart(observer):
-    ax = make_finding_chart(observer, savefig=False)
+    plotter = Plotter(observer)
+    ax = plotter.make_finding_chart(observer, savefig=False)
     assert len(ax.get_images()) > 0
     title = ax.get_title()
     assert title.beginswith(f"{observer.target.info['target_name']}")

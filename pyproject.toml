@@ -31,4 +31,5 @@ test = ["pytest >= 7.1.1"]
 [tool.pytest.ini_options]
 minversion = "7.1.1"
 addopts = "-ra -q"
-testpaths = ["tests"]
+testpaths = ["flows_get_brightest/tests.py"]
+markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]

@@ -78,7 +78,8 @@ def query_simbad(coo_centre, radius=24*u.arcmin) -> tuple[Optional[Table], Optio
 
 
 def query_2mass_image(ra, dec, pixels=2500, radius=50):
+    radius = radius << u.arcmin
     out = SkyView.get_images(position='{}, {}'.format(ra, dec),
                              survey='2MASS-H', pixels=str(pixels),
-                             coordinates='J2000', scaling='Linear', radius=radius * u.arcmin)
+                             coordinates='J2000', scaling='Linear', radius=radius)
     return out[0][0]

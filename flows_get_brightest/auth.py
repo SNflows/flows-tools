@@ -37,11 +37,3 @@ def test_connection() -> None:
                                      "Check your API key and that target exists."
                                      "Also try Tendrils config steps from:"
                                      "https://www.github.com/SNFlows/tendrils/#before-you-begin-important"))
-
-
-if __name__ == "__main__":
-    # Manual destructive test so not in tests.
-    tendrils.utils.set_api_token("bad_token", overwrite=True)
-    if not test_tendrils():
-        update_api_token()
-    print('All tests passed.')
