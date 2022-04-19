@@ -10,6 +10,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from .observer import Observer
 from .utils import numeric
 
+
 class Plotter:
     """
     Takes an observer with WCS, Target, Plan, Instrument, Regions, and Corners and makes a finding chart.

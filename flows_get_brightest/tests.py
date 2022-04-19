@@ -8,12 +8,12 @@ rot, tid, shifta, shiftd = 30, 8, 10, 10
 
 
 @pytest.mark.skip(reason="Skip until destructive overwrite is fixed")
-def test_auth():
+def test_auth(monkeypatch):
     """
     Test the auth module.
     """
     with pytest.warns(RuntimeWarning):
-        pytest.monkeypatch.setattr('builtins.input', lambda _: 'bad_token')
+        monkeypatch.setattr('builtins.input', lambda _: 'bad_token')
         test_connection()
 
 
@@ -41,10 +41,12 @@ def test_observer(observer):
 
 
 @pytest.mark.slow
-def test_make_finding_chart(observer):
+def test_make_finding_chart(observer, monkeypatch):
+    import matplotlib.pyplot as plt
+    monkeypatch.setattr(plt, 'show', lambda: None)
     plotter = Plotter(observer)
     ax = plotter.make_finding_chart(observer, savefig=False)
     assert len(ax.get_images()) > 0
     title = ax.get_title()
-    assert title.beginswith(f"{observer.target.info['target_name']}")
-    assert title.endsswith("FC")
+    assert title.startswith(f"{observer.target.info['target_name']}")
+    assert title.endswith("FC")
