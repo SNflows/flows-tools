@@ -4,8 +4,10 @@ import astropy.visualization as viz
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+from astropy.visualization import ZScaleInterval
 from matplotlib.ticker import MaxNLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from flows_get_brightest.run_get_brightest import Observer
 
 
 def plot_image(image, ax=None, scale='log', cmap=None, origin='lower', xlabel=None,
@@ -193,3 +195,30 @@ def plot_image(image, ax=None, scale='log', cmap=None, origin='lower', xlabel=No
     ax.yaxis.tick_left()
 
     return im
+
+
+def make_finding_chart(obs: Observer, plot_refcat: bool = True, plot_simbad: bool = True, savefig: bool = True) -> \
+        matplotlib.pyplot.axes.Axes:
+    """Make finding chart for a given observation."""
+    image = obs.get_image()
+    zscale = ZScaleInterval()
+    vmin, vmax = zscale.get_limits(image.data.flat)
+    obs.wcs = obs.get_wcs(image.header)
+    regions = obs.regions_to_physical()
+    fig, ax = plt.subplots(figsize=(20, 20), subplot_kw={'projection': obs.wcs}, dpi=200)
+    for i, region in enumerate(regions):
+        region.plot(ax=ax, edgecolor='cyan', linestyle='-.', label=obs.ins.region_names[i])
+
+    plot_image(image.data, ax=ax, cmap='viridis', scale='linear', vmin=vmin, vmax=vmax)
+    tar_pix = obs.wcs.all_world2pix(obs.target.ra, obs.target.dec, 0)
+    ax.scatter(tar_pix[0], tar_pix[1], marker='*', s=450, label='SN', color='orange')
+    refcat_stars = obs.refcat_coords.to_pixel(obs.wcs)
+    simbad_stars = obs.simbad_coords.to_pixel(obs.wcs)
+    ax.scatter(refcat_stars[0], refcat_stars[1], facecolors='none', edgecolors='red', zorder=5, alpha=3.0, marker='o',
+               s=200, label='Refcat2')
+    ax.scatter(simbad_stars[0], simbad_stars[1], facecolors='none', edgecolors='orange', zorder=5, alpha=3.0,
+               marker='o', s=200, label='Simbad')
+    ax.legend(fontsize=18)
+    ax.set_title(f"{obs.target.info['target_name']} {obs.ins.__class__.__name__} FC")
+    fig.savefig(f"{obs.target.info['target_name']}_{obs.ins.__class__.__name__}_finding_chart.png")
+    return ax
