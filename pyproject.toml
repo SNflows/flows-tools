@@ -24,3 +24,11 @@ Home = "https://github.com/SNflows/flows-tools/"
 
 [project.scripts]
 get_brightest = "flows_get_brightest:main"
+
+[project.optional-dependencies]
+test = ["pytest >= 7.1.1"]
+
+[tool.pytest.ini_options]
+minversion = "7.1.1"
+addopts = "-ra -q"
+testpaths = ["tests"]
