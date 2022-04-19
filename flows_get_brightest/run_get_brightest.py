@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 from tendrils import api
 from astropy.time import Time
 from astropy.table import Table
+
+from flows_get_brightest.auth import test_tendrils, update_api_token
 from .catalogs import query_simbad, query_2mass_image
 from astropy.coordinates import SkyCoord, ICRS
 import astropy.units as u
@@ -26,29 +28,27 @@ warnings.filterwarnings('ignore', category=ErfaWarning, append=True)
 
 
 def parse():
-    '''parse command line input to get target, position angle (rotate), alpha and delta offsets (shifta, shiftd)'''
+    """Parse command line input to get target, position angle (rotate), alpha and delta offsets (shifta, shiftd)
+    """
     parser = argparse.ArgumentParser(description='Calculate Brightest Star')
-    parser.add_argument('-t', '--target', help="calculate for this targetname or targetid",
-                        type=str, default='None', action='store')
-    parser.add_argument('-r', '--rotate', help='rotation angle in degrees',
-                        type=float, default=0.0, action='store')
-    parser.add_argument('-a', '--shifta', help='shift alpha in arcsec',
-                        type=float, default=0.0, action='store')
-    parser.add_argument('-d', '--shiftd', help='shift delta in arcsec',
-                        type=float, default=0.0, action='store')
-    parser.add_argument('-p', '--plot', help='whether to query images and plot',
-                        type=bool, default=False, action='store')
+    parser.add_argument('-t', '--target', help="calculate for this targetname or targetid", type=str, default='None',
+                        action='store')
+    parser.add_argument('-r', '--rotate', help='rotation angle in degrees', type=float, default=0.0, action='store')
+    parser.add_argument('-a', '--shifta', help='shift alpha in arcsec', type=float, default=0.0, action='store')
+    parser.add_argument('-d', '--shiftd', help='shift delta in arcsec', type=float, default=0.0, action='store')
+    parser.add_argument('-p', '--plot', help='whether to query images and plot', type=bool, default=False,
+                        action='store')
 
     args = parser.parse_args()
     if args.target == 'None':
         parser.error('target id or name not provided, use -t <targetid> or <targetname>')
     elif args.target.isnumeric():
         args.target = int(args.target)
-    return args.rotate, args.target, args.shifta, args.shiftd
+    return args.rotate, args.target, args.shifta, args.shiftd, args.plot
 
 
 def process_corner(corners):
-    '''Given corners of a rectangle defined as astropy Quantity objects, return it as an np array of floats'''
+    """Given corners of a rectangle defined as astropy Quantity objects, return it as an np array of floats"""
     _points = [u.quantity.Quantity(corner) for corner in corners]
     return np.array(_points)
 
@@ -61,7 +61,8 @@ class Instrument(ABC):
         pass
 
     @abstractmethod
-    def point(self, target: Target, plan: Plan) -> list[regions.RectangleSkyRegion, Optional[regions.RectangleSkyRegion]]:
+    def point(self, target: Target, plan: Plan) -> list[
+        regions.RectangleSkyRegion, Optional[regions.RectangleSkyRegion]]:
         pass
 
     @abstractmethod
@@ -207,7 +208,6 @@ class Plan:
         self.rotation = self.rotation << u.deg
 
 
-
 class Observer:
 
     def __init__(self, instrument: Instrument, target: Target, plan: Plan, verbose: bool = False):
@@ -228,8 +228,8 @@ class Observer:
                    f'. If not, there might be a slight mismatch in alignment in current year.'))
         self.wcs = self.get_wcs(self.refcat_coords.frame)
 
-    def _make_refcat_catalog(self, mask: bool = True, mask_dict: Optional[dict[str, float]] = None) \
-            -> tuple[SkyCoord, Table]:
+    def _make_refcat_catalog(self, mask: bool = True, mask_dict: Optional[dict[str, float]] = None) -> tuple[
+        SkyCoord, Table]:
         refcat = api.get_catalog(self.target.tid)
         if mask and mask_dict is not None:
             masks = []
@@ -241,10 +241,8 @@ class Observer:
             else:
                 for msk in masks:
                     refcat['references'] = refcat['references'][msk]
-        refcat_coords = SkyCoord(ra=refcat['references']['ra'],
-                                 dec=refcat['references']['decl'],
-                                 pm_ra_cosdec=refcat['references']['pm_ra'],
-                                 pm_dec=refcat['references']['pm_dec'],
+        refcat_coords = SkyCoord(ra=refcat['references']['ra'], dec=refcat['references']['decl'],
+                                 pm_ra_cosdec=refcat['references']['pm_ra'], pm_dec=refcat['references']['pm_dec'],
                                  obstime=Time(2015.5, format='decimalyear'))
         return refcat_coords, refcat['references']
 
@@ -253,7 +251,6 @@ class Observer:
         # propagate Simbad catalog coords to refcat reference year
         simbad_coords = simbad[1].apply_space_motion(new_obstime=Time(2015.5, format='decimalyear'))
         return simbad_coords, simbad[0]
-
 
     def get_wcs(self, frame: Optional[object] = None, header: Optional[object] = None) -> WCS:
         if frame is not None:
@@ -305,6 +302,15 @@ def main():
     # Parse input
     rot, tid, shifta, shiftd = parse()
 
+    # Test connection to flows:
+    if not test_tendrils():
+        update_api_token()
+        if not test_tendrils():
+            warnings.warn(RuntimeWarning("Could not connect to flows via tendrils. "
+                                         "Check your API key and that target exists."
+                                         "Also try tendrils config steps from:"
+                                         "https://www.github.com/SNFlows/tendrils/#before-you-begin-important"))
+
     # Get query flows database
     target_info = api.get_target(tid)
     target_info['skycoord'] = SkyCoord(target_info['ra'] * u.deg, target_info['decl'] * u.deg)
@@ -317,6 +323,7 @@ def main():
 
     # Print brightest star in field and get list of bright stars.
     brightest_stars = obs.check_bright_stars(region=obs.regions[0])
+
 
 if __name__ == '__main__':
     main()
