@@ -4,19 +4,17 @@ from tendrils import api
 from astropy.time import Time
 from astropy.table import Table
 
-from flows_get_brightest.auth import test_tendrils, update_api_token
+from .auth import test_connection, test_tendrils, update_api_token
 from .catalogs import query_simbad, query_2mass_image
 from astropy.coordinates import SkyCoord, ICRS
 import astropy.units as u
 from erfa import ErfaWarning
 import argparse
 import numpy as np
-import matplotlib.pyplot as plt
 from astropy.wcs import WCS
 from astropy.wcs.utils import celestial_frame_to_wcs
 import regions
-from .plots import plot_image
-from astropy.visualization import ZScaleInterval
+from .plots import make_finding_chart
 from dataclasses import dataclass, field
 from typing import Union, Optional
 import warnings
@@ -75,6 +73,11 @@ class Instrument(ABC):
 
     @abstractmethod
     def get_regions(self):
+        pass
+
+    @property
+    @abstractmethod
+    def region_names(self):
         pass
 
     @abstractmethod
@@ -142,6 +145,10 @@ class Hawki(Instrument):
         hawki_region = self.make_region(self.center_coords, self.field_hw, self.field_hw, self.rotation)
         chip1_region = self.make_region(self.chip1_center_coords, self.chip1_hw, self.chip1_hw, self.rotation)
         return hawki_region, chip1_region
+
+    @property
+    def region_names(self) -> tuple[str, str]:
+        return 'HAWK-I', 'chip1'
 
     def get_corners(self) -> list[Corner, Corner]:
         chip1_corners = Corner(self.chip1_center_coords.ra, self.chip1_center_coords.dec, self.chip1_hw)
@@ -298,19 +305,10 @@ class Plotter:
         pass
 
 
-def main():
-    # Parse input
-    rot, tid, shifta, shiftd = parse()
-
-    # Test connection to flows:
-    if not test_tendrils():
-        update_api_token()
-        if not test_tendrils():
-            warnings.warn(RuntimeWarning("Could not connect to flows via tendrils. "
-                                         "Check your API key and that target exists."
-                                         "Also try tendrils config steps from:"
-                                         "https://www.github.com/SNFlows/tendrils/#before-you-begin-important"))
-
+def get_flows_observer(rot: numeric, tid: Union[int, str], shifta: numeric, shiftd: numeric) -> Observer:
+    """
+    Returns the H-mag of the brightest star in the given region.
+    """
     # Get query flows database
     target_info = api.get_target(tid)
     target_info['skycoord'] = SkyCoord(target_info['ra'] * u.deg, target_info['decl'] * u.deg)
@@ -319,10 +317,23 @@ def main():
     target = Target(tid, target_info['ra'], target_info['decl'], target_info['skycoord'], target_info)
     plan = Plan(rot, shifta, shiftd)
     hawki = Hawki(target.coords)
-    obs = Observer(hawki, target, plan)
+    return Observer(hawki, target, plan)
 
-    # Print brightest star in field and get list of bright stars.
-    brightest_stars = obs.check_bright_stars(region=obs.regions[0])
+
+def main():
+    # Parse input
+    rot, tid, shifta, shiftd, make_fc = parse()
+
+    # Test connection to flows:
+    test_connection()
+
+    # Print brightest star in field
+    obs = get_flows_observer(rot, tid, shifta, shiftd)
+    obs.check_bright_stars(region=obs.regions[0])
+
+    # Make finding chart if requested
+    if make_fc:
+        make_finding_chart(obs)
 
 
 if __name__ == '__main__':
