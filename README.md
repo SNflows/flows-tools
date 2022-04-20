@@ -1,3 +1,5 @@
+[![Python package](https://github.com/SNflows/flows-tools/actions/workflows/python-package.yml/badge.svg)](https://github.com/SNflows/flows-tools/actions/workflows/python-package.yml)
+
 # flows-tools   
 Observer tools for the FLOWS pipeline. Contains python packages, scripts, and notebooks for the following tasks:
  - Pointing, OB generation helper with VLT HAWK-I, finder chart maker.
