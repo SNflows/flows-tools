@@ -17,8 +17,8 @@ Uses `tendrils` to query objects. Optionally plots a finding chart.
 Easily extensible to use with other instruments.
 
 ### install with:
-``pip install flows_get_brightest``
-
+``pip install flows_get_brightest``   
+**NOTE**: Installation requires `python >= 3.10` due to `tendrils` dependency.  
 ### Usage:
 Installs a user script `get_brightest` that can be run from the command line.
 ``get_brightest --help``.
