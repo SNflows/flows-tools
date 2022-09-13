@@ -5,6 +5,7 @@ from typing import Collection, Optional
 import numpy as np
 from astropy.table import Table
 import asyncio
+from requests.exceptions import HTTPError
 
 eso_sites = [2, 12, 15]
 eso_site_names = {2:"VLT-HAWKI", 12: "NTT-SOFI", 15: "NTT-EFOSC"}
@@ -40,8 +41,9 @@ async def get_target_lc(tgtid: int, targets: pd.DataFrame) -> pd.DataFrame:
     lc = lc.to_pandas()
     lc['mag'] = lc['mag_sub'].fillna(lc['mag_raw'])
     lc = lc[usecols]
-    lc.set_index('fileid_img', inplace=True)
-
+    return lc.set_index('fileid_img')
+    
+async def get_missing_eso_lcs(lc: pd.DataFrame, tgtid: int, targets: pd.DataFrame) -> pd.DataFrame:
     # add data with failed/missing photometry
     dfs = api.get_datafiles(tgtid, filt='all')
     missing_fids = set(dfs) - set(lc.index.values)
@@ -50,7 +52,14 @@ async def get_target_lc(tgtid: int, targets: pd.DataFrame) -> pd.DataFrame:
     return lc[lc['site'].isin(eso_sites)]
 
 async def get_eso_lc(tgtid: int, targets: pd.DataFrame) -> pd.DataFrame:
-    lc = await get_target_lc(tgtid, targets)
+    try:
+        lc = await get_target_lc(tgtid, targets)
+    except HTTPError:
+        lc = pd.DataFrame(index=[], columns=usecols)
+        lc.set_index('fileid_img', inplace=True)
+    lc = await get_missing_eso_lcs(lc, tgtid, targets)
+    if len(lc) == 0:
+        return pd.DataFrame()
     lc[tgtcols] = get_target_data(tgtid, targets)
     return lc
 
@@ -59,11 +68,12 @@ async def get_eso_lc(tgtid: int, targets: pd.DataFrame) -> pd.DataFrame:
 async def main():
     targets = get_targets()
     coroutines = [get_eso_lc(tgtid, targets) for tgtid in targets.index]
-    eso_lcs = await asyncio.gather(*coroutines)
-    eso_lcs = pd.concat(eso_lcs)
+    eso_lcs_with_excp = await asyncio.gather(*coroutines, return_exceptions=True)
+    eso_lcs = pd.concat([lc for lc in eso_lcs_with_excp if isinstance(lc, pd.DataFrame)])
     eso_lcs['site'] = eso_lcs.site.apply(lambda x: eso_site_names[x])
     eso_lcs.to_json('eso_lcs.json')
     eso_lcs.to_csv('eso_lcs.csv')
+    print([lc for lc in eso_lcs_with_excp if not isinstance(lc, pd.DataFrame)])
     
     
 
