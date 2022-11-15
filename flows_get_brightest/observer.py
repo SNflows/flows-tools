@@ -107,5 +107,5 @@ def get_flows_observer(rot: numeric, tid: Union[int, str], shifta: numeric, shif
     # Create Observer
     target = Target(tid, target_info['ra'], target_info['decl'], target_info['skycoord'], target_info)
     plan = Plan.from_numeric(rot, shifta, shiftd)
-    hawki = Hawki(target.coords)
+    hawki = instrument(target.coords)
     return Observer(hawki, target, plan)
