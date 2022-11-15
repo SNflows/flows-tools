@@ -4,12 +4,14 @@ from astroquery.simbad import Simbad
 import astropy.units as u
 from astroquery.skyview import SkyView
 from astropy.table import Table
-from typing import Optional
+from astropy.io.fits import PrimaryHDU
+from typing import Optional, cast
+from .utils import numeric
 
 
-def query_simbad(coo_centre, radius=24*u.arcmin) -> tuple[Optional[Table], Optional[SkyCoord]]:
+def query_simbad(coo_centre, radius= u.Quantity(24, u.arcmin)) -> tuple[Optional[Table], Optional[SkyCoord]]:
     """
-    Query SIMBAD using cone-search around the position using astroquery.
+    Query SIMBAD using cone-search around the position using astroquery
     Parameters:
         coo_centre (:class:`astropy.coordinates.SkyCoord`): Coordinates of centre of search cone.
         radius (float, optional):
@@ -77,9 +79,10 @@ def query_simbad(coo_centre, radius=24*u.arcmin) -> tuple[Optional[Table], Optio
     return results, simbad
 
 
-def query_2mass_image(ra, dec, pixels=2500, radius=50):
-    radius = radius << u.arcmin
+def query_2mass_image(ra: float, dec: float, pixels: int = 2500, radius: numeric = 50) -> PrimaryHDU:  # ImageHDU
+    qradius: u.Quantity = radius << u.arcmin  # type: ignore # Convert to astropy units
     out = SkyView.get_images(position='{}, {}'.format(ra, dec),
                              survey='2MASS-H', pixels=str(pixels),
-                             coordinates='J2000', scaling='Linear', radius=radius)
-    return out[0][0]
+                             coordinates='J2000', scaling='Linear', radius=qradius)
+    hdul = out.pop()
+    return cast(PrimaryHDU, hdul.pop())  

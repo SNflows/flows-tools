@@ -1,6 +1,6 @@
 import astropy.units as u
 import numpy as np
-
+from numpy.typing import NDArray
 
 class Corner:
 
@@ -11,14 +11,14 @@ class Corner:
         self.corner_xy = self.set_corners()
         self.corners = self.process_corner()
 
-    def set_corners(self):
+    def set_corners(self) -> tuple[u.Quantity, u.Quantity, u.Quantity, u.Quantity]:
         """Get corners of a rectangle for a given ra dec and side length
         :return: list[corner 1, corner 2, ..]
         """
-        return [(self.x - self.hw, self.y - self.hw), (self.x - self.hw, self.y + self.hw),
-                (self.x + self.hw, self.y + self.hw), (self.x + self.hw, self.y - self.hw)]
+        return ((self.x - self.hw, self.y - self.hw), (self.x - self.hw, self.y + self.hw), # type: ignore
+               (self.x + self.hw, self.y + self.hw), (self.x + self.hw, self.y - self.hw))
 
-    def process_corner(self):
+    def process_corner(self) -> NDArray:
         """Given corners of a rectangle defined as astropy Quantity objects, return it as an np array of floats"""
-        _points = [u.quantity.Quantity(corner) for corner in self.corner_xy]
-        return np.array(_points)
+        #_points: list[u.Quantity] = [u.quantity.Quantity(corner) for corner in self.corner_xy]
+        return np.array(self.corner_xy)
