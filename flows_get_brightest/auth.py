@@ -1,5 +1,4 @@
-import tendrils.api
-import tendrils.utils
+import tendrils
 from requests.exceptions import HTTPError
 import warnings
 

@@ -1,32 +1,15 @@
 import copy
 import logging
-from typing import cast
-from dataclasses import dataclass
 import astropy.visualization as viz
 import matplotlib
-from matplotlib.markers import MarkerStyle
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.visualization import ZScaleInterval
-from astropy.io.fits import Header, PrimaryHDU
 from matplotlib.ticker import MaxNLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from .observer import Observer
 from .utils import numeric
 
-
-@dataclass
-class Image:
-    data: np.ndarray
-    header: Header
-    
-    @classmethod
-    def fromHDU(cls, hdu: PrimaryHDU) -> "Image":
-        """Create Image from PrimaryHDU"""
-        if hdu.data is None:
-            raise ValueError('HDU has no data.')
-        return cls(data=cast(np.ndarray, hdu.data), header=hdu.header)
-    
 
 class Plotter:
     """
@@ -46,7 +29,6 @@ class Plotter:
         obs = self.obs
         image = obs.get_image(radius=radius)
         zscale = ZScaleInterval()
-        image = Image.fromHDU(image)
         vmin, vmax = zscale.get_limits(image.data.flat)
         obs.wcs = obs.get_wcs(header=image.header)
         regions = obs.regions_to_physical()
@@ -63,7 +45,7 @@ class Plotter:
         if plot_refcat:
             refcat_stars = obs.refcat_coords.to_pixel(obs.wcs)
             ax.scatter(refcat_stars[0], refcat_stars[1], facecolors='none', edgecolors='red', zorder=4, alpha=0.8,
-                       marker="o", s=100, label='Refcat2')
+                       marker='o', s=100, label='Refcat2')
         if plot_simbad:
             simbad_stars = obs.simbad_coords.to_pixel(obs.wcs)
             ax.scatter(simbad_stars[0], simbad_stars[1], facecolors='none', edgecolors='orange', zorder=5, alpha=0.8,
