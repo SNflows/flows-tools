@@ -12,6 +12,7 @@ import regions
 
 class Instrument(ABC):
     """Instrument class"""
+    field_hw: u.Quantity
 
     @abstractmethod
     def __init__(self, coords: SkyCoord, rotation: Optional[u.Quantity] = u.Quantity(0.0, u.deg)) -> None:
@@ -127,3 +128,55 @@ class Hawki(Instrument):
         if pa is None: raise ValueError('Position angle is None')
         sep = coord1.separation(coord2)
         return pa, sep
+
+class FixedSizeInstrument(Instrument):
+    """Generic Single field instrument with 7.5 arcminute field for making a finder chart."""
+    field_hw = u.Quantity(7.5, u.arcminute)
+    
+    def __init__(self, coords: SkyCoord, rotation: numeric = u.Quantity(0.0, u.deg)):
+        # Coordinates
+        self.rotation: u.Quantity = rotation << u.deg  # type: ignore
+        self.coords = coords  # initial (target) coord
+        self.center_coords = self.default_point()  # Hawki center coord
+        self.field_region = self.get_regions()
+
+    def point(self, target: Target, plan: Plan) -> list[regions.RectangleSkyRegion]:
+        """point telescope to rot=rotation in degrees, alpha and delta offset in arcseconds"""
+        self.coords = target.coords  # Assume unchanged
+        if plan.rotate:
+            self.rotation = u.Quantity(plan.rotation, u.deg)
+
+        self.center_coords = self.default_point(plan.alpha, plan.delta)
+        self.field_region = self.get_regions()
+        return [self.field_region]
+
+    def offset(self, shifta: Optional[numeric] = 0.0, shiftd: Optional[numeric] = 0.0) -> SkyCoord:
+        shifta = shifta << u.arcsecond  # type: ignore
+        shiftd = shiftd << u.arcsecond  # type: ignore
+        return self.coords.spherical_offsets_by(shifta, shiftd)
+
+    def get_regions(self) -> regions.RectangleSkyRegion:
+        return self.make_region(self.center_coords, self.field_hw, self.field_hw, self.rotation)
+
+    @property
+    def region_names(self) -> list[str]:
+        return ['field']
+    
+    @property
+    def nregions(self) -> int:
+        return 1
+
+    def get_corners(self) -> list[Corner]:
+        fieldra, fielddec = self.center_coords.ra, self.center_coords.dec
+        quants = [fieldra, fielddec]
+        if not is_quantity(quants):
+            raise ValueError(f'center_coords must be SkyCoord with Quantity ra and dec.')
+        field_corners = Corner(quants[0], quants[1], self.field_hw)
+        return [field_corners]
+
+    @staticmethod
+    def make_region(coords: SkyCoord, width: u.Quantity, height: u.Quantity, angle: u.Quantity) -> regions.RectangleSkyRegion:
+        return regions.RectangleSkyRegion(coords, width=width, height=height, angle=angle)
+
+    def default_point(self, alpha: u.Quantity = u.Quantity(0.0, u.arcsec), delta: u.Quantity = u.Quantity(0.0, u.arcsec)) -> SkyCoord:
+        return self.offset(alpha, delta)

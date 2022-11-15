@@ -4,26 +4,27 @@ from erfa import ErfaWarning
 from .plots import Plotter
 from .auth import test_connection
 from .observer import get_flows_observer
-from .utils import parse
+from .parser import parse
 
 # Most useless warnings ever spammed for every operation by this package!
 warnings.filterwarnings('ignore', category=ErfaWarning, append=True)
+warnings.filterwarnings('ignore', message='invalid value', category=RuntimeWarning, append=True)
 
 
 def main():
     # Parse input
-    rot, tid, shifta, shiftd, make_fc = parse()
+    rot, tid, shifta, shiftd, make_fc, inst = parse()
 
     # Test connection to flows:
     test_connection()
 
-    # Print brightest star in field
-    obs = get_flows_observer(rot, tid, shifta, shiftd)
+    # Print brightest star in (first) field
+    obs = get_flows_observer(rot, tid, shifta, shiftd, inst)
     obs.check_bright_stars(region=obs.regions[0])
 
     # Make finding chart if requested
     if make_fc:
-        Plotter(obs).make_finding_chart(radius=14)
+        Plotter(obs).make_finding_chart(radius=inst.field_hw.value*2)
 
 
 if __name__ == '__main__':

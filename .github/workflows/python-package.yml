@@ -43,4 +43,4 @@ jobs:
       env:
         FLOWS_API_TOKEN: ${{ secrets.FLOWS_API_TOKEN }}
       run: |
-        pytest
+        pytest -v
