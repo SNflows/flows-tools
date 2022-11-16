@@ -91,7 +91,7 @@ jobs:
         pytest -v --cov-report "xml:coverage.xml" --cov
     - name: Pytest coverage report
       uses: MishaKav/pytest-coverage-comment@main
-      if: ${{ jobs.build.runs-on == "ubuntu-latest" }} 
+      if: startsWith(${{matrix.os}},'ubuntu') 
       with:
         pytest-xml-coverage-path: ./coverage.xml
         token: ${{ secrets.GITHUB_TOKEN }}
