@@ -25,7 +25,7 @@ def main():
     obs.check_bright_stars(region=obs.regions[0])
 
     # Make finding chart if requested
-    radius = cast(float, inst.field_hw.value) * 2 
+    radius = cast(float, inst.field_hw.value) * 2
     if make_fc:
         Plotter(obs).make_finding_chart(radius=radius)
 
