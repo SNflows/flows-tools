@@ -1,8 +1,8 @@
 from dataclasses import dataclass
-from typing import Any, TypeGuard
 import numpy as np
 import astropy.units as u
 from .utils import numeric
+
 
 @dataclass
 class Plan:
@@ -30,19 +30,18 @@ class Plan:
     #     self.alpha = self.alpha << u.arcsec  # type: ignore
     #     self.delta = self.delta << u.arcsec  # type: ignore
     #     self.rotation = self.rotation << u.deg  # type: ignore
-        
+
     @classmethod
     def from_numeric(cls, rotation: numeric, alpha: numeric, delta: numeric) -> "Plan":
-        return cls(rotation=rotation << u.deg, alpha=alpha << u.arcsec, delta=delta << u.arcsec) # type: ignore
-        
+        return cls(rotation=rotation << u.deg, alpha=alpha << u.arcsec, delta=delta << u.arcsec)  # type: ignore
+
     # def finalize(self) -> FinalizedPlan:
     #     if self._finalized(self):
     #         return FinalizedPlan(self.rotation, self.alpha, self.delta, self.rotate, self.shift)
     #     raise ValueError('Plan not finalized, attributes must be quantites.')
-    
+
     # @staticmethod
     # def _finalized(p: Any) -> TypeGuard[FinalizedPlan]:
     #     if isinstance(p.rotation, u.Quantity) and isinstance(p.alpha, u.Quantity) and isinstance(p.delta, u.Quantity):
     #         return True
     #     return False
-    

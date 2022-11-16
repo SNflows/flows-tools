@@ -1,0 +1,3 @@
+from ..core.pixcoord import PixCoord as PixCoord
+
+def pixel_scale_angle_at_skycoord(skycoord, wcs, offset=...): ...

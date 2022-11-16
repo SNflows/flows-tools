@@ -26,7 +26,13 @@ Home = "https://github.com/SNflows/flows-tools/"
 get_brightest = "flows_get_brightest:main"
 
 [project.optional-dependencies]
-test = ["pytest >= 7.1.1"]
+test = [
+  "pytest >= 7.1.1",
+  "pytest-cov >= 4.0.0",
+  "mypy >= 0.991",
+  "flake8 >= 5.0.0",
+  "black >= 22.10.0",
+  ]
 
 [tool.pytest.ini_options]
 minversion = "7.1.1"
@@ -57,3 +63,30 @@ exclude = '''
   )/
 )
 '''
+
+[tool.mypy]
+exclude = 'mpl_toolkits'
+implicit_reexport = true
+
+[[tool.mypy.overrides]]
+module = [
+    'astroquery.logger',
+    'astropy.*',
+    'mpl_toolkits.*',
+    'erfa.*',
+    'matplotlib.colors.*',
+    'matplotlib.ticker.*',
+    'matplotlib.transforms.*',
+    'matplotlib._mathtext.*',
+    'matplotlib.layout_engine.*',
+    'matplotlib.text.*',
+    'matplotlib.textpath.*',
+    'matplotlib.image.*',
+    'matplotlib.patches.*',
+    'matplotlib.offsetbox.*',
+    'matplotlib.legend.*',
+]
+ignore_missing_imports = true
+ignore_errors = true
+allow_untyped_globals = true
+implicit_reexport = true
