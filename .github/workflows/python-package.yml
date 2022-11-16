@@ -95,7 +95,7 @@ jobs:
       if: startsWith(${{matrix.os}},'ubuntu') 
       with:
         pytest-xml-coverage-path: ./coverage.xml
-        token: ${{ secrets.GITHUB_TOKEN }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
         title: Coverage Report
         badge-title: Tests Coverage
         hide-badge: false
