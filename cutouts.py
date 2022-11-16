@@ -1,4 +1,5 @@
 import astropy.io.fits as fits
+
 # noinspection PyProtectedMember
 from astropy.io.fits.hdu.image import _ImageBaseHDU
 from astropy.nddata import Cutout2D
@@ -11,9 +12,9 @@ from astropy.visualization.interval import BaseInterval
 import numpy as np
 from abc import ABC, abstractmethod
 
-"""Expects fits compatible images saved with a single file extension (no .fits.gz), 
+"""Expects fits compatible images saved with a single file extension (no .fits.gz),
 Makes a cutout based on values of y and x and recomputes wcs,
-Saves the new fits file in output dir, 
+Saves the new fits file in output dir,
 preserves all extensions and applies the same cut to all image extensions
 optionally plots the primary image in cut and uncut form.
 
@@ -22,7 +23,6 @@ code_author: emirkmo@github.com.
 
 
 class AbstractImage(ABC):
-
     @abstractmethod
     def __init__(self, image: _ImageBaseHDU):
         self.image = image
@@ -41,9 +41,7 @@ class AbstractImage(ABC):
 
 # noinspection PyAttributeOutsideInit
 class Image(AbstractImage):
-
-    def __init__(self, image: _ImageBaseHDU,
-                 primary: bool = False):
+    def __init__(self, image: _ImageBaseHDU, primary: bool = False):
         self.image = image
         self.data = image.data
         self.header = image.header
@@ -63,12 +61,7 @@ class Image(AbstractImage):
     #    else: raise(TypeError)
 
     def cutout(self, y, x):
-        self.cut = Cutout2D(
-            self.data,
-            position=self.wcs.wcs.crpix,
-            wcs=self.wcs,
-            size=(y, x)
-        )
+        self.cut = Cutout2D(self.data, position=self.wcs.wcs.crpix, wcs=self.wcs, size=(y, x))
 
     # noinspection PyCallingNonCallable
     def make_fits_from_cutout(self):
@@ -82,7 +75,7 @@ class Image(AbstractImage):
             try:
                 self.cut_image.header[key] = self.header[key]
             except ValueError:
-                print(f'Bad fits key: {key}')
+                print(f"Bad fits key: {key}")
 
     def make_cutout(self, y: int, x: int):
         """convenience function for making a cutout image and forward filling header"""
@@ -93,13 +86,9 @@ class Image(AbstractImage):
 
 
 class Plotter:
-
-    def __init__(self,
-                 figsize: tuple = (8, 8),
-                 zs: BaseInterval = ZScaleInterval(1000),
-                 subplots: int = 1,
-                 dpi: int = 125
-                 ):
+    def __init__(
+        self, figsize: tuple = (8, 8), zs: BaseInterval = ZScaleInterval(1000), subplots: int = 1, dpi: int = 125
+    ):
         self.figsize = figsize
         self.interval_finder = zs
         self.fig = plt.figure(figsize=self.figsize, dpi=dpi)
@@ -109,8 +98,8 @@ class Plotter:
         self.ax = None
 
     # noinspection SpellCheckingInspection
-    def plot_img(self, image: Image, wcs: WCS = 'None'):
-        if wcs == 'None':
+    def plot_img(self, image: Image, wcs: WCS = "None"):
+        if wcs == "None":
             wcs = image.wcs
         self.ax = self.fig.add_subplot(1, self.subplots, self.active_axis, projection=wcs)
         vmin, vmax = self.interval_finder.get_limits(image.data)
@@ -124,18 +113,15 @@ def parse():
     """Parse input
     :rtype: object
     """
-    parser = argparse.ArgumentParser(prog='cut_image',
-                                     description='Cut image and all image extensions')
+    parser = argparse.ArgumentParser(prog="cut_image", description="Cut image and all image extensions")
 
     parser.add_argument("file", help="Specify the original file here")
 
-    parser.add_argument("--output_dir", help="Give output directory for saving", default='./')
-    parser.add_argument("-x", help='output suffix', type=int, default=4096)
-    parser.add_argument("-y", help='output suffix', type=int, default=4030)
-    parser.add_argument("-o", "--overwrite", help='overwrite output if exists',
-                        action='store_true', default=False)
-    parser.add_argument("-p", "--plot", help='overwrite output if exists',
-                        action='store_true', default=False)
+    parser.add_argument("--output_dir", help="Give output directory for saving", default="./")
+    parser.add_argument("-x", help="output suffix", type=int, default=4096)
+    parser.add_argument("-y", help="output suffix", type=int, default=4030)
+    parser.add_argument("-o", "--overwrite", help="overwrite output if exists", action="store_true", default=False)
+    parser.add_argument("-p", "--plot", help="overwrite output if exists", action="store_true", default=False)
 
     return parser.parse_args()
 
@@ -144,8 +130,10 @@ def find_primary(hdul):
     # Find primary HDU and use its wcs
     primary_index = np.argwhere([isinstance(i, fits.PrimaryHDU) for i in hdul]).flatten()
     if primary_index.size <= 0 or primary_index.size > 1:
-        raise ValueError('WCS to use could not be set as there were less than or greater than one Primary HDUs \
-                         This should never be the case, please check your fits image!')
+        raise ValueError(
+            "WCS to use could not be set as there were less than or greater than one Primary HDUs                      "
+            "    This should never be the case, please check your fits image!"
+        )
     return primary_index[0]
 
 
@@ -163,7 +151,7 @@ def make_img_cutout(i, wcs, y, x) -> AbstractImage:
 def main():
     args = parse()
     curr = Path(args.file)
-    save_path = Path.joinpath(Path(args.output_dir), curr.stem + '_cutout' + curr.suffix).resolve()
+    save_path = Path.joinpath(Path(args.output_dir), curr.stem + "_cutout" + curr.suffix).resolve()
 
     hdul = fits.open(curr)
     new_hdul = fits.HDUList()
@@ -184,16 +172,15 @@ def main():
     if args.plot:
         plotter = Plotter(subplots=2, dpi=200)
         plotter.plot_img(Image(new_hdul[0], primary=True))
-        plotter.ax.set_title('cutout')
+        plotter.ax.set_title("cutout")
         plotter.plot_img(Image(hdul[0], primary=True))
-        plotter.ax.set_title('uncut')
+        plotter.ax.set_title("uncut")
         plt.show(block=True)
 
     # Save
-    new_hdul.writeto(str(save_path), output_verify='exception',
-                     overwrite=args.overwrite, checksum=False)
-    print(f'saved to: {save_path}')
+    new_hdul.writeto(str(save_path), output_verify="exception", overwrite=args.overwrite, checksum=False)
+    print(f"saved to: {save_path}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

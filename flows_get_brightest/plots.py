@@ -3,11 +3,11 @@ import logging
 from typing import cast
 from dataclasses import dataclass
 import astropy.visualization as viz
-import matplotlib
-#from matplotlib.markers import MarkerStyle
+from matplotlib.colors import Normalize
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NDArray
 from astropy.visualization import ZScaleInterval
 from astropy.io.fits import Header, PrimaryHDU
 from matplotlib.ticker import MaxNLocator
@@ -18,16 +18,16 @@ from .utils import numeric
 
 @dataclass
 class Image:
-    data: np.ndarray
+    data: NDArray[np.float64]
     header: Header
-    
+
     @classmethod
     def fromHDU(cls, hdu: PrimaryHDU) -> "Image":
         """Create Image from PrimaryHDU"""
         if hdu.data is None:
-            raise ValueError('HDU has no data.')
+            raise ValueError("HDU has no data.")
         return cls(data=cast(np.ndarray, hdu.data), header=hdu.header)
-    
+
 
 class Plotter:
     """
@@ -41,34 +41,53 @@ class Plotter:
         """not implemented yet"""
         pass
 
-    def make_finding_chart(self, plot_refcat: bool = True, plot_simbad: bool = True,
-                           savefig: bool = True, radius: numeric = 14) -> Axes:
+    def make_finding_chart(
+        self, plot_refcat: bool = True, plot_simbad: bool = True, savefig: bool = True, radius: numeric = 14
+    ) -> Axes:
         """Make finding chart for a given observation."""
         obs = self.obs
-        image = obs.get_image(radius=radius)
+        imagehdu = obs.get_image(radius=radius)
         zscale = ZScaleInterval()
-        image = Image.fromHDU(image)
+        image = Image.fromHDU(imagehdu)
         vmin, vmax = zscale.get_limits(image.data.flat)
         obs.wcs = obs.get_wcs(header=image.header)
         regions = obs.regions_to_physical()
 
-        fig, ax = plt.subplots(figsize=(10, 10), subplot_kw={'projection': obs.wcs})
+        fig, ax = plt.subplots(figsize=(10, 10), subplot_kw={"projection": obs.wcs})
 
         for i, region in enumerate(regions):
-            region.plot(ax=ax, edgecolor='cyan', linestyle='-.', label=obs.ins.region_names[i])
+            region.plot(ax=ax, edgecolor="cyan", linestyle="-.", label=obs.ins.region_names[i])
 
-        self.plot_image(image.data, ax=ax, cmap='viridis', scale='linear', vmin=vmin, vmax=vmax)
+        self.plot_image(image.data, ax=ax, cmap="viridis", scale="linear", vmin=vmin, vmax=vmax)
         tar_pix = obs.wcs.all_world2pix(obs.target.ra, obs.target.dec, 0)
-        ax.scatter(tar_pix[0], tar_pix[1], marker='*', s=250, label='SN', color='orange')
+        ax.scatter(tar_pix[0], tar_pix[1], marker="*", s=250, label="SN", color="orange")
 
         if plot_refcat:
             refcat_stars = obs.refcat_coords.to_pixel(obs.wcs)
-            ax.scatter(refcat_stars[0], refcat_stars[1], facecolors='none', edgecolors='red', zorder=4, alpha=0.8,
-                       marker="o", s=100, label='Refcat2')
+            ax.scatter(
+                refcat_stars[0],
+                refcat_stars[1],
+                facecolors="none",
+                edgecolors="red",
+                zorder=4,
+                alpha=0.8,
+                marker="o",
+                s=100,
+                label="Refcat2",
+            )
         if plot_simbad:
             simbad_stars = obs.simbad_coords.to_pixel(obs.wcs)
-            ax.scatter(simbad_stars[0], simbad_stars[1], facecolors='none', edgecolors='orange', zorder=5, alpha=0.8,
-                       marker='o', s=100, label='Simbad')
+            ax.scatter(
+                simbad_stars[0],
+                simbad_stars[1],
+                facecolors="none",
+                edgecolors="orange",
+                zorder=5,
+                alpha=0.8,
+                marker="o",
+                s=100,
+                label="Simbad",
+            )
 
         ax.legend(fontsize=15)
         ax.set_title(f"{obs.target.info['target_name']} {obs.ins.__class__.__name__} FC")
@@ -79,9 +98,28 @@ class Plotter:
 
     # Copied from flows image plotter.
     @staticmethod
-    def plot_image(image, ax=None, scale='log', cmap=None, origin='lower', xlabel=None, ylabel=None, cbar=None,
-                   clabel='Flux ($e^{-}s^{-1}$)', cbar_ticks=None, cbar_ticklabels=None, cbar_pad=None, cbar_size='4%',
-                   title=None, percentile=95.0, vmin=None, vmax=None, offset_axes=None, color_bad='k', **kwargs):
+    def plot_image(  # noqa: C901 (ignore complexity) # Imported wholesale from flows, not worth refactoring.
+        image,
+        ax=None,
+        scale="log",
+        cmap=None,
+        origin="lower",
+        xlabel=None,
+        ylabel=None,
+        cbar=None,
+        clabel="Flux ($e^{-}s^{-1}$)",
+        cbar_ticks=None,
+        cbar_ticklabels=None,
+        cbar_pad=None,
+        cbar_size="4%",
+        title=None,
+        percentile=95.0,
+        vmin=None,
+        vmax=None,
+        offset_axes=None,
+        color_bad="k",
+        **kwargs,
+    ):
         """
         Utility function to plot a 2D image.
         Parameters:
@@ -122,18 +160,22 @@ class Plotter:
         logger = logging.getLogger(__name__)
 
         # Backward compatible settings:
-        make_cbar = kwargs.pop('make_cbar', None)
+        make_cbar = kwargs.pop("make_cbar", None)
         if make_cbar:
             raise FutureWarning("'make_cbar' is deprecated. Use 'cbar' instead.")
             if not cbar:
                 cbar = make_cbar
 
         # Special treatment for boolean arrays:
-        if isinstance(image, np.ndarray) and image.dtype == 'bool':
-            if vmin is None: vmin = 0
-            if vmax is None: vmax = 1
-            if cbar_ticks is None: cbar_ticks = [0, 1]
-            if cbar_ticklabels is None: cbar_ticklabels = ['False', 'True']
+        if isinstance(image, np.ndarray) and image.dtype == "bool":
+            if vmin is None:
+                vmin = 0
+            if vmax is None:
+                vmax = 1
+            if cbar_ticks is None:
+                cbar_ticks = [0, 1]
+            if cbar_ticklabels is None:
+                cbar_ticklabels = ["False", "True"]
 
         # Calculate limits of color scaling:
         interval = None
@@ -152,36 +194,42 @@ class Plotter:
                 interval = viz.PercentileInterval(percentile)
 
         # Create ImageNormalize object with extracted limits:
-        if scale in ('log', 'linear', 'sqrt', 'asinh', 'histeq', 'sinh', 'squared'):
-            if scale == 'log':
+        if scale in ("log", "linear", "sqrt", "asinh", "histeq", "sinh", "squared"):
+            stretch: viz.BaseStretch = viz.LinearStretch()
+            if scale == "log":
                 stretch = viz.LogStretch()
-            elif scale == 'linear':
+            elif scale == "linear":
                 stretch = viz.LinearStretch()
-            elif scale == 'sqrt':
+            elif scale == "sqrt":
                 stretch = viz.SqrtStretch()
-            elif scale == 'asinh':
+            elif scale == "asinh":
                 stretch = viz.AsinhStretch()
-            elif scale == 'histeq':
+            elif scale == "histeq":
                 stretch = viz.HistEqStretch(image[np.isfinite(image)])
-            elif scale == 'sinh':
+            elif scale == "sinh":
                 stretch = viz.SinhStretch()
-            elif scale == 'squared':
+            elif scale == "squared":
                 stretch = viz.SquaredStretch()
-            else:
-                stretch = viz.LinearStretch()
 
             # Create ImageNormalize object. Very important to use clip=False here, otherwise
             # NaN points will not be plotted correctly.
-            norm = viz.ImageNormalize(data=image, interval=interval, vmin=vmin, vmax=vmax, stretch=stretch, clip=False)  # type: ignore
+            norm: viz.ImageNormalize | Normalize
+            norm = viz.ImageNormalize(
+                data=image, interval=interval, vmin=vmin, vmax=vmax, stretch=stretch, clip=False
+            )  # type: ignore
 
-        elif isinstance(scale, (viz.ImageNormalize, matplotlib.colors.Normalize)):
+        elif isinstance(scale, (viz.ImageNormalize, Normalize)):
             norm = scale
         else:
             raise ValueError("scale {} is not available.".format(scale))
 
         if offset_axes:
-            extent = (offset_axes[0] - 0.5, offset_axes[0] + image.shape[1] - 0.5, offset_axes[1] - 0.5,
-                      offset_axes[1] + image.shape[0] - 0.5)
+            extent = (
+                offset_axes[0] - 0.5,
+                offset_axes[0] + image.shape[1] - 0.5,
+                offset_axes[1] - 0.5,
+                offset_axes[1] + image.shape[0] - 0.5,
+            )
         else:
             extent = (-0.5, image.shape[1] - 0.5, -0.5, image.shape[0] - 0.5)
 
@@ -191,14 +239,14 @@ class Plotter:
         # Set up the colormap to use. If a bad color is defined,
         # add it to the colormap:
         if cmap is None:
-            cmap = copy.copy(plt.get_cmap('Blues'))  # type: ignore
+            cmap = copy.copy(plt.get_cmap("Blues"))  # type: ignore
         elif isinstance(cmap, str):
             cmap = copy.copy(plt.get_cmap(cmap))  # type: ignore
 
         if color_bad:
             cmap.set_bad(color_bad, 1.0)
 
-        im = ax.imshow(image, cmap=cmap, norm=norm, origin=origin, extent=extent, interpolation='nearest', **kwargs)
+        im = ax.imshow(image, cmap=cmap, norm=norm, origin=origin, extent=extent, interpolation="nearest", **kwargs)
         if xlabel is not None:
             ax.set_xlabel(xlabel)
         if ylabel is not None:
@@ -211,31 +259,31 @@ class Plotter:
         if cbar:
             fig = ax.figure
             divider = make_axes_locatable(ax)
-            if cbar == 'top':
+            if cbar == "top":
                 cbar_pad = 0.05 if cbar_pad is None else cbar_pad
-                cax = divider.append_axes('top', size=cbar_size, pad=cbar_pad)
-                orientation = 'horizontal'
-            elif cbar == 'bottom':
+                cax = divider.append_axes("top", size=cbar_size, pad=cbar_pad)
+                orientation = "horizontal"
+            elif cbar == "bottom":
                 cbar_pad = 0.35 if cbar_pad is None else cbar_pad
-                cax = divider.append_axes('bottom', size=cbar_size, pad=cbar_pad)
-                orientation = 'horizontal'
-            elif cbar == 'left':
+                cax = divider.append_axes("bottom", size=cbar_size, pad=cbar_pad)
+                orientation = "horizontal"
+            elif cbar == "left":
                 cbar_pad = 0.35 if cbar_pad is None else cbar_pad
-                cax = divider.append_axes('left', size=cbar_size, pad=cbar_pad)
-                orientation = 'vertical'
+                cax = divider.append_axes("left", size=cbar_size, pad=cbar_pad)
+                orientation = "vertical"
             else:
                 cbar_pad = 0.05 if cbar_pad is None else cbar_pad
-                cax = divider.append_axes('right', size=cbar_size, pad=cbar_pad)
-                orientation = 'vertical'
+                cax = divider.append_axes("right", size=cbar_size, pad=cbar_pad)
+                orientation = "vertical"
 
             cb = fig.colorbar(im, cax=cax, orientation=orientation)
 
-            if cbar == 'top':
-                cax.xaxis.set_ticks_position('top')
-                cax.xaxis.set_label_position('top')
-            elif cbar == 'left':
-                cax.yaxis.set_ticks_position('left')
-                cax.yaxis.set_label_position('left')
+            if cbar == "top":
+                cax.xaxis.set_ticks_position("top")
+                cax.xaxis.set_label_position("top")
+            elif cbar == "left":
+                cax.yaxis.set_ticks_position("left")
+                cax.yaxis.set_label_position("left")
 
             if clabel is not None:
                 cb.set_label(clabel)
@@ -246,7 +294,7 @@ class Plotter:
 
             # cax.yaxis.set_major_locator(matplotlib.ticker.AutoLocator())
             # cax.yaxis.set_minor_locator(matplotlib.ticker.AutoLocator())
-            cax.tick_params(which='both', direction='out', pad=5)
+            cax.tick_params(which="both", direction="out", pad=5)
 
         # Settings for ticks:
         integer_locator = MaxNLocator(nbins=10, integer=True)
@@ -254,7 +302,7 @@ class Plotter:
         ax.xaxis.set_minor_locator(integer_locator)
         ax.yaxis.set_major_locator(integer_locator)
         ax.yaxis.set_minor_locator(integer_locator)
-        ax.tick_params(which='both', direction='out', pad=5)
+        ax.tick_params(which="both", direction="out", pad=5)
         ax.xaxis.tick_bottom()
         ax.yaxis.tick_left()
 

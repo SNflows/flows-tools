@@ -4,5 +4,5 @@ instrument Field of View for a given FLOWS target, retrieved via
 tendrils API. Extensible for other instruments and projects.
 Can optionally make a finding chart using NASA SkyView.
 """
-from .version import __version__
-from .run_get_brightest import main
+from .version import __version__ as __version__  # noqa: F401
+from .run_get_brightest import main as main  # noqa: F401
