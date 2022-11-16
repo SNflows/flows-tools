@@ -1,5 +1,5 @@
 [![CI Tests](https://github.com/SNflows/flows-tools/actions/workflows/python-package.yml/badge.svg)](https://github.com/SNflows/flows-tools/actions/workflows/python-package.yml)
-[![Test coverage](https://img.shields.io/badge/Tests Coverage-73%25-yellow.svg)](https://github.com/SNflows/flows-tools/pull/27#issuecomment-1317015483)
+[![Test coverage](https://img.shields.io/badge/Tests%20Coverage-73%25-yellow.svg)](https://github.com/SNflows/flows-tools/pull/27#issuecomment-1317015483)
 
 # flows-tools   
 Observer tools for the FLOWS pipeline. Contains python packages, scripts, and notebooks for the following tasks:
