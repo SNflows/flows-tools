@@ -4,7 +4,8 @@ from typing import cast
 from dataclasses import dataclass
 import astropy.visualization as viz
 import matplotlib
-from matplotlib.markers import MarkerStyle
+#from matplotlib.markers import MarkerStyle
+from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import numpy as np
 from astropy.visualization import ZScaleInterval
@@ -36,12 +37,12 @@ class Plotter:
     def __init__(self, obs: Observer):
         self.obs = obs
 
-    def plot(self):
+    def plot(self) -> None:
         """not implemented yet"""
         pass
 
     def make_finding_chart(self, plot_refcat: bool = True, plot_simbad: bool = True,
-                           savefig: bool = True, radius: numeric = 14) -> matplotlib.axes.Axes:
+                           savefig: bool = True, radius: numeric = 14) -> Axes:
         """Make finding chart for a given observation."""
         obs = self.obs
         image = obs.get_image(radius=radius)
@@ -166,10 +167,12 @@ class Plotter:
                 stretch = viz.SinhStretch()
             elif scale == 'squared':
                 stretch = viz.SquaredStretch()
+            else:
+                stretch = viz.LinearStretch()
 
             # Create ImageNormalize object. Very important to use clip=False here, otherwise
             # NaN points will not be plotted correctly.
-            norm = viz.ImageNormalize(data=image, interval=interval, vmin=vmin, vmax=vmax, stretch=stretch, clip=False)
+            norm = viz.ImageNormalize(data=image, interval=interval, vmin=vmin, vmax=vmax, stretch=stretch, clip=False)  # type: ignore
 
         elif isinstance(scale, (viz.ImageNormalize, matplotlib.colors.Normalize)):
             norm = scale
@@ -188,9 +191,9 @@ class Plotter:
         # Set up the colormap to use. If a bad color is defined,
         # add it to the colormap:
         if cmap is None:
-            cmap = copy.copy(plt.get_cmap('Blues'))
+            cmap = copy.copy(plt.get_cmap('Blues'))  # type: ignore
         elif isinstance(cmap, str):
-            cmap = copy.copy(plt.get_cmap(cmap))
+            cmap = copy.copy(plt.get_cmap(cmap))  # type: ignore
 
         if color_bad:
             cmap.set_bad(color_bad, 1.0)

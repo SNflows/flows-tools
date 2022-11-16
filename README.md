@@ -25,8 +25,10 @@ Installs a user script `get_brightest` that can be run from the command line.
 
 ### test with: 
 ``pip install flows_get_brightest[test]``    
-``pytest``
-
+``pytest -v --cov``
+``mypy flows_get_brightest/ typings/tendrils/ --config-file=pyproject.toml --check-untyped-defs``
+``flake8 . --count --exit-zero --max-complexity=10 --max-line-length=120 --statistics --extend-ignore=F821 --exclude .git,.idea,.mypy_cache,Notebooks/``
+``black --check --verbose flows_get_brightest/``
 Note: user script only tested to work on Linux and Mac OS.
 
 ---
