@@ -1,5 +1,5 @@
 import argparse
-from typing import Any, TypeGuard
+from typing import Any
 
 import astropy.units as u
 
@@ -46,7 +46,7 @@ def get_defaults(use_parser: Parsers) -> argparse.ArgumentParser:
         return parser
     elif use_parser == Parsers.make_fc:
         parser = argparse.ArgumentParser(description="Make Finder chart")
-        group = parser.add_mutually_exclusive_group(required=False)
+        group = parser.add_argument_group()
         group.add_argument(
             "image",
             help="OPTIONAL: image to use for plot if not querying",
@@ -114,31 +114,33 @@ def get_instrument(args: argparse.Namespace) -> type[Instrument]:
     return instrument
 
 
-def check_flows_target(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    if args.target == "None":
+def check_flows_target(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int | str:
+    target = args.target.strip()
+    if target == "None":
         parser.error("target id or name not provided, use -t <targetid> or <targetname>")
-    elif args.target.isnumeric():
+    elif target.isnumeric():
         args.target = int(args.target)
+    return args.target
 
 
 def parse_brightest() -> tuple[float, int | str, float, float, bool, type[Instrument]]:
     parser = get_defaults(Parsers.get_brightest)
     args = parser.parse_args()
 
-    check_flows_target(args, parser)
+    args.target = check_flows_target(args, parser)
 
     instrument = get_instrument(args)
 
-    return args.target, args.rotate, args.shifta, args.shiftd, args.plot, instrument
+    return args.rotate, args.target, args.shifta, args.shiftd, args.plot, instrument
 
 
 def parse_fc() -> (
     tuple[float, int | str, float, float, type[Instrument], str | None, str | None, str, str, float, float]
 ):
-    parser = get_defaults(Parsers.get_brightest)
+    parser = get_defaults(Parsers.make_fc)
     args = parser.parse_args()
 
-    check_flows_target(args, parser)
+    args.target = check_flows_target(args, parser)
     instrument = get_instrument(args)
 
     if args.survey not in [e.value for e in SkyViewSurveys]:

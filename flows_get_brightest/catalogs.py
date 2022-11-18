@@ -1,5 +1,5 @@
 import warnings
-from typing import Literal, Optional, cast
+from typing import Optional, cast
 
 import astropy.units as u
 from astropy.coordinates import Angle, SkyCoord

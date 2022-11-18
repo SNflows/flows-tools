@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import warnings
-from pydoc import plain
 from typing import cast
 
 from erfa import ErfaWarning

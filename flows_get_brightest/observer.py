@@ -12,7 +12,7 @@ from astropy.wcs.utils import celestial_frame_to_wcs
 from numpy.typing import NDArray
 from tendrils import api
 
-from .catalogs import SkyViewSurveys, query_simbad, query_skyview
+from .catalogs import query_simbad, query_skyview
 from .instruments import Hawki, Instrument
 from .plan import Plan
 from .target import Target
