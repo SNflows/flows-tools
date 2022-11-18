@@ -1,17 +1,19 @@
 import copy
 import logging
-from typing import cast
 from dataclasses import dataclass
+from typing import cast
+
 import astropy.visualization as viz
-from matplotlib.colors import Normalize
-from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.typing import NDArray
-from astropy.visualization import ZScaleInterval
 from astropy.io.fits import Header, PrimaryHDU
+from astropy.visualization import ZScaleInterval
+from matplotlib.axes import Axes
+from matplotlib.colors import Normalize
 from matplotlib.ticker import MaxNLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from numpy.typing import NDArray
+
 from .observer import Observer
 from .utils import numeric
 
@@ -29,27 +31,43 @@ class Image:
         return cls(data=cast(np.ndarray, hdu.data), header=hdu.header)
 
 
+def get_zscaler(nsamples: int = 1000, contrast: float = 0.25, krej: float = 2.5) -> ZScaleInterval:
+    zscale = ZScaleInterval(nsamples=nsamples, contrast=contrast, krej=krej)
+    return zscale
+
+
 class Plotter:
     """
     Takes an observer with WCS, Target, Plan, Instrument, Regions, and Corners and makes a finding chart.
+    cmap: str = "viridis"
     """
 
-    def __init__(self, obs: Observer):
+    def __init__(self, obs: Observer, cmap: str = "gist_yarg") -> None:
         self.obs = obs
+        self.cmap = cmap
 
     def plot(self) -> None:
         """not implemented yet"""
         pass
 
     def make_finding_chart(
-        self, plot_refcat: bool = True, plot_simbad: bool = True, savefig: bool = True, radius: numeric = 14
+        self,
+        plot_refcat: bool = True,
+        plot_simbad: bool = True,
+        savefig: bool = True,
+        radius: numeric = 14,
+        zscaler: ZScaleInterval = get_zscaler(),
     ) -> Axes:
-        """Make finding chart for a given observation."""
+        """Make finding chart for a given observation.
+        scale: str = "linear" one of "log", "linear", "sqrt", "asinh", "histeq", "sinh", "squared"
+
+        """
         obs = self.obs
+
         imagehdu = obs.get_image(radius=radius)
-        zscale = ZScaleInterval()
         image = Image.fromHDU(imagehdu)
-        vmin, vmax = zscale.get_limits(image.data.flat)
+        vmin, vmax = zscaler.get_limits(image.data.flat)
+
         obs.wcs = obs.get_wcs(header=image.header)
         regions = obs.regions_to_physical()
 
@@ -58,9 +76,21 @@ class Plotter:
         for i, region in enumerate(regions):
             region.plot(ax=ax, edgecolor="cyan", linestyle="-.", label=obs.ins.region_names[i])
 
-        self.plot_image(image.data, ax=ax, cmap="viridis", scale="linear", vmin=vmin, vmax=vmax)
+        self.plot_image(image.data, ax=ax, cmap=self.cmap, scale=obs.plan.image_scale, vmin=vmin, vmax=vmax)
         tar_pix = obs.wcs.all_world2pix(obs.target.ra, obs.target.dec, 0)
-        ax.scatter(tar_pix[0], tar_pix[1], marker="*", s=250, label="SN", color="orange")
+        # ax.scatter(
+        #     tar_pix[0], tar_pix[1], marker="*", s=250, label="SN", markerfacecolor="None", markeredgecolor="orange"
+        # )
+        ax.plot(
+            tar_pix[0],
+            tar_pix[1],
+            marker="*",
+            markersize=20,
+            linestyle="None",
+            label="SN",
+            markerfacecolor="None",
+            markeredgecolor="orange",
+        )
 
         if plot_refcat:
             refcat_stars = obs.refcat_coords.to_pixel(obs.wcs)
@@ -90,7 +120,7 @@ class Plotter:
             )
 
         ax.legend(fontsize=15)
-        ax.set_title(f"{obs.target.info['target_name']} {obs.ins.__class__.__name__} FC")
+        ax.set_title(f"{obs.target.info['target_name']} {obs.ins} FC", fontsize=18, fontweight="semibold")
         if savefig:
             fig.savefig(f"{obs.target.info['target_name']}_{obs.ins.__class__.__name__}_finding_chart.png")
         plt.show()

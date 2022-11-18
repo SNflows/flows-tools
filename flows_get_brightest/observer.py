@@ -1,25 +1,26 @@
 from typing import Optional, Union
 
-from astropy.coordinates import SkyCoord
 import astropy.units as u
+import numpy as np
+import regions
+from astropy.coordinates import SkyCoord
+from astropy.io.fits import PrimaryHDU
+from astropy.io.fits import open as fits_open
 from astropy.time import Time
 from astropy.wcs import WCS
 from astropy.wcs.utils import celestial_frame_to_wcs
-from astropy.io.fits import PrimaryHDU
-import regions
-import numpy as np
 from numpy.typing import NDArray
 from tendrils import api
 
-from .instruments import Instrument, Hawki
+from .catalogs import SkyViewSurveys, query_simbad, query_skyview
+from .instruments import Hawki, Instrument
+from .plan import Plan
 from .target import Target
 from .utils import numeric, tabular
-from .catalogs import query_2mass_image, query_simbad
-from .plan import Plan
 
 
 class Observer:
-    def __init__(self, instrument: Instrument, target: Target, plan: Plan, verbose: bool = False):
+    def __init__(self, instrument: Instrument, target: Target, plan: Plan, verbose: bool = False) -> None:
         self.target = target  # target info
         self.plan = plan  # Store offsets and rotations.
         self.ins = instrument  # store instrument specific info
@@ -35,7 +36,13 @@ class Observer:
                 f"equivalent: {self.refcat_coords.frame.is_equivalent_frame(self.simbad_coords.frame)}"
                 ". If not, there might be a slight mismatch in alignment in current year."
             )
-        self.wcs = self.get_wcs(self.refcat_coords.frame)
+
+        self.image: Optional[PrimaryHDU] = None
+        use_frame: Optional[object] = self.refcat_coords.frame
+        if self.plan.local_image is not None:
+            self.image = self.get_image()
+            use_frame = None
+        self.wcs = self.get_wcs(frame=use_frame)
 
     def _make_refcat_catalog(self, mask: bool = True, mask_dict: Optional[dict[str, float]] = None) -> tabular:
         refcat = api.get_catalog(self.target.tid)
@@ -73,11 +80,20 @@ class Observer:
             return wcs
         elif header is not None:
             return WCS(header)
+        elif self.image is not None:
+            return WCS(self.image.header)
         else:
             raise AttributeError("Both frame and header were None, cannot calculate WCS")
 
     def get_image(self, pixels: int = 2500, radius: numeric = 50) -> PrimaryHDU:
-        return query_2mass_image(self.target.ra, self.target.dec, pixels, radius)
+        if self.image is not None:  # cached image
+            return self.image
+        if self.plan.local_image is not None:
+            with fits_open(self.plan.local_image) as hdul:
+                return hdul[0]
+        return query_skyview(
+            self.target.ra, self.target.dec, pixels, radius, scale=self.plan.image_scale, survey=self.plan.survey
+        )
 
     def regions_to_physical(self) -> list[regions.RectangleSkyRegion]:
         pixel_regions = []
@@ -102,7 +118,9 @@ class Observer:
 
 
 def get_flows_observer(
-    rot: numeric, tid: Union[int, str], shifta: numeric, shiftd: numeric, instrument: type[Instrument] = Hawki
+    plan: Plan,
+    tid: Union[int, str],
+    instrument: type[Instrument] = Hawki,
 ) -> Observer:
     """
     Returns the H-mag of the brightest star in the given region.
@@ -113,6 +131,6 @@ def get_flows_observer(
 
     # Create Observer
     target = Target(tid, target_info["ra"], target_info["decl"], target_info["skycoord"], target_info)
-    plan = Plan.from_numeric(rot, shifta, shiftd)
+
     hawki = instrument(target.coords)
     return Observer(hawki, target, plan)

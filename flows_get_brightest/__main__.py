@@ -1,3 +1,3 @@
-from flows_get_brightest import run_get_brightest
+from flows_get_brightest import make_fc
 
-run_get_brightest.main()
+make_fc.main()

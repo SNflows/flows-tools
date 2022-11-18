@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
 from typing import Optional
-from .target import Target
-from .plan import Plan
-from .corner import Corner
-from .utils import numeric, is_quantity
 
-from astropy.coordinates import SkyCoord
 import astropy.units as u
 import regions
+from astropy.coordinates import SkyCoord
+
+from .corner import Corner
+from .plan import Plan
+from .target import Target
+from .utils import is_quantity, numeric
 
 
 class Instrument(ABC):
@@ -47,6 +48,10 @@ class Instrument(ABC):
 
     @abstractmethod
     def get_corners(self) -> list[Corner]:
+        pass
+
+    @abstractmethod
+    def __str__(self) -> str:
         pass
 
 
@@ -138,6 +143,9 @@ class Hawki(Instrument):
         sep = coord1.separation(coord2)
         return pa, sep
 
+    def __str__(self) -> str:
+        return "Hawki"
+
 
 class FixedSizeInstrument(Instrument):
     """Generic Single field instrument with 7.5 arcminute field for making a finder chart."""
@@ -195,3 +203,6 @@ class FixedSizeInstrument(Instrument):
         self, alpha: u.Quantity = u.Quantity(0.0, u.arcsec), delta: u.Quantity = u.Quantity(0.0, u.arcsec)
     ) -> SkyCoord:
         return self.offset(alpha, delta)
+
+    def __str__(self) -> str:
+        return f"Fov:{self.field_hw}"

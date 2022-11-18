@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import warnings
-from pydoc import plain
 from typing import cast
 
 from erfa import ErfaWarning
 
-from .argparser import parse_brightest
+from .argparser import parse_fc
 from .auth import test_connection
 from .observer import get_flows_observer
 from .plan import make_plan
-from .plots import Plotter
+from .plots import Plotter, get_zscaler
 
 # Most useless warnings ever spammed for every operation by this package!
 warnings.filterwarnings("ignore", category=ErfaWarning, append=True)
@@ -19,20 +18,22 @@ warnings.filterwarnings("ignore", message="invalid value", category=RuntimeWarni
 
 def main():
     # Parse input
-    rot, tid, shifta, shiftd, make_fc, inst = parse_brightest()
+    rot, tid, shifta, shiftd, inst, image, survey, cmap, scale, sigma, contrast = parse_fc()
 
     # Test connection to flows:
     test_connection()
 
-    # Print brightest star in (first) field
-    plan = make_plan(rot, shifta, shiftd)
+    # Whether to query for image or use local image
+    plan = make_plan(rot, shifta, shiftd, image=image, survey=survey, scale=scale)
+
+    # Create observer
     obs = get_flows_observer(plan, tid, inst)
-    obs.check_bright_stars(region=obs.regions[0])
 
     # Make finding chart if requested
-    radius = cast(float, inst.field_hw.value) * 2.0
-    if make_fc:
-        Plotter(obs).make_finding_chart(radius=radius)
+    radius = cast(float, inst.field_hw.value) * 1.2
+
+    zscaler = get_zscaler(krej=sigma, contrast=contrast)
+    Plotter(obs, cmap=cmap).make_finding_chart(radius=radius, zscaler=zscaler)
 
 
 if __name__ == "__main__":

@@ -1,12 +1,14 @@
 import warnings
-from astropy.coordinates import SkyCoord, Angle
-from astroquery.simbad import Simbad
+from typing import Literal, Optional, cast
+
 import astropy.units as u
-from astroquery.skyview import SkyView
-from astropy.table import Table
+from astropy.coordinates import Angle, SkyCoord
 from astropy.io.fits import PrimaryHDU
-from typing import Optional, cast
-from .utils import numeric
+from astropy.table import Table
+from astroquery.simbad import Simbad
+from astroquery.skyview import SkyView
+
+from .utils import StrEnum, numeric
 
 
 def query_simbad(
@@ -84,14 +86,60 @@ def query_simbad(
     return results, simbad
 
 
-def query_2mass_image(ra: float, dec: float, pixels: int = 2500, radius: numeric = 50) -> PrimaryHDU:  # ImageHDU
+class SkyViewSurveys(StrEnum):
+    TWO_MASS_H = "2MASS-H"
+    DSS = "DSS"
+    DSS_B = "DSS2-B"
+    DSS_R = "DSS2-R"
+    SDSS_G = "SDSS-G"
+    SDSS_R = "SDSS-R"
+
+
+def query_skyview(
+    ra: float,
+    dec: float,
+    pixels: int = 2500,
+    radius: numeric = 20,
+    scale: str = "linear",
+    survey: str = SkyViewSurveys.DSS,
+) -> PrimaryHDU:
+    """
+    Query SkyView using astroquery
+    Parameters:
+        ra (float): Right Ascension of centre of search cone.
+        dec (float): Declination of centre of search cone.
+        radius (float, optional):
+    Returns:
+        dict: Dictionary of HDU objects.
+    """
     qradius: u.Quantity = radius << u.arcmin  # type: ignore # Convert to astropy units
     out = SkyView.get_images(
         position="{}, {}".format(ra, dec),
-        survey="2MASS-H",
+        survey=survey,
         pixels=str(pixels),
         coordinates="J2000",
-        scaling="Linear",
+        scaling=scale,
+        radius=qradius,
+    )
+    hdul = out.pop()
+    return cast(PrimaryHDU, hdul.pop())
+
+
+def query_2mass_image(
+    ra: float,
+    dec: float,
+    pixels: int = 2500,
+    radius: numeric = 50,
+    scale: str = "linear",
+    survey: str = SkyViewSurveys.TWO_MASS_H,
+) -> PrimaryHDU:  # ImageHDU
+    qradius: u.Quantity = radius << u.arcmin  # type: ignore # Convert to astropy units
+    out = SkyView.get_images(
+        position="{}, {}".format(ra, dec),
+        survey=survey,
+        pixels=str(pixels),
+        coordinates="J2000",
+        scaling=scale,
         radius=qradius,
     )
     hdul = out.pop()
