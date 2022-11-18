@@ -23,7 +23,8 @@ dependencies = [
 Home = "https://github.com/SNflows/flows-tools/"
 
 [project.scripts]
-get_brightest = "flows_finder:main"
+get_brightest = "flows_finder:get_brightest"
+make_fc = "flows_finder:make_fc"
 
 [project.optional-dependencies]
 test = [
