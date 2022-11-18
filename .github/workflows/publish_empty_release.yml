@@ -13,11 +13,11 @@ jobs:
       id: tag
       run: |
         TAG=${GITHUB_REF#refs/*/}
-        VERSION=${TAG#v*}
+        VERSION=${TAG#v/*}
         echo "version-${VERSION}" >> $GITHUB_OUTPUT
     - name: Create a Release
       uses: elgohr/Github-Release-Action@v4
       env:
         GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
       with:
-        title: "FlowsTools ${{ steps.split.outputs.version }}: latest tagged release"
+        title: "FlowsTools ${{ steps.tag.output.version }}: latest tagged release"
