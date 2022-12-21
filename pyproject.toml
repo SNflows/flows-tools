@@ -3,7 +3,7 @@ requires = ["flit_core >=3.5,<4"]
 build-backend = "flit_core.buildapi"
 
 [project]
-name = "flows_get_brightest"
+name = "flows_finder"
 authors = [{name = "Emir Karamehmetoglu", email = "emir.k@phys.au.dk"}]
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -23,7 +23,8 @@ dependencies = [
 Home = "https://github.com/SNflows/flows-tools/"
 
 [project.scripts]
-get_brightest = "flows_get_brightest:main"
+get_brightest = "flows_finder:get_brightest.main"
+make_fc = "flows_finder:make_fc.main"
 
 [project.optional-dependencies]
 test = [
@@ -37,7 +38,7 @@ test = [
 [tool.pytest.ini_options]
 minversion = "7.1.1"
 addopts = "-rA -q -p no:warnings"
-testpaths = ["flows_get_brightest/tests.py"]
+testpaths = ["flows_finder/tests.py"]
 markers = ["slow: marks tests as slow (deselect with '-m \"not slow\"')"]
 
 [tool.black]

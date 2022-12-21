@@ -1,9 +1,11 @@
+import enum
 import os
-from typing import Any, Union, TypeGuard, TypedDict
+from typing import Any, TypedDict, TypeGuard, Union
+
 import astropy.units as u
+import tendrils.utils
 from astropy.coordinates import SkyCoord
 from astropy.table import Table
-import tendrils.utils
 
 # custom types
 numeric = Union[float, int, u.Quantity]
@@ -44,6 +46,13 @@ def is_quantity(qt: list[Any]) -> TypeGuard[list[u.Quantity]]:
         if not isinstance(q, u.Quantity):
             return False
     return True
+
+
+class StrEnum(str, enum.Enum):
+    """Enum with string values."""
+
+    def __str__(self) -> str:
+        return str(self.value)
 
 
 if __name__ == "__main__":
