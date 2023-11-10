@@ -121,14 +121,8 @@ def get_target_stats(data, img_wcs, ra, dec, r_in, r_out):
 
     Returns
     -------
-    aperture: ~astropy.aperture
-        Annulus aperture used for the background.
-    mean: float
-        Background mean.
-    mean: float
-        Background median.
-    std: float
-        Background standard deviation.
+    aperstats: ~astropy.aperture.ApertureStats
+        Annulus statistics.
     """
     coords = SkyCoord(ra=ra, dec=dec, unit=(u.degree, u.degree), frame="icrs")
 
@@ -137,7 +131,7 @@ def get_target_stats(data, img_wcs, ra, dec, r_in, r_out):
     aperture = SkyCircularAnnulus(coords, r_in=r_in, r_out=r_out)
     aperstats = ApertureStats(data, aperture, wcs=img_wcs) 
 
-    return aperture, aperstats.mean, aperstats.median, aperstats.std
+    return aperstats
             
 def plot_target(
     hdu,
@@ -199,14 +193,14 @@ def plot_target(
 
     sep_mean, sep_std = info_dict['sep']
     astro_mean, astro_median, astro_std = info_dict['astro']
-    target_mean, target_median, target_std = info_dict['target']
+    target_bkg, target_std, percent = info_dict['target']
     sep_diff = info_dict['sep_diff']
     astro_diff = info_dict['astro_diff']
     
     text = 'Background stats\n'
     text += f'SEP: mean={sep_mean:.2f}, std={sep_std:.2f}\n'
     text += f'ASTROPY: mean={astro_mean:.2f}, median={astro_median:.2f}, std={astro_std:.2f}\n'
-    text += f'Annulus: mean={target_mean:.2f}, median={target_median:.2f}, std={target_std:.2f}\n'
+    text += f'Annulus: percentile ({percent}%)={target_bkg:.2f}, std={target_std:.2f}\n'
     text += f'$\Delta$(SEP): {sep_diff:.2f}$\sigma$, $\Delta$(ASTROPY): {astro_diff:.2f}$\sigma$'
     
     fig.add_label(0.04, 0.11, text, relative=True, **{"family": font_family, 
@@ -228,11 +222,13 @@ def plot_target(
 
     plt.show()
     
-def check_background(file, ra, dec, r_in=3, r_out=6, method='mean', show_plot=True, size=1.0):
+def check_background(file, ra, dec, r_in=3, r_out=6, method='mean', percent=90, show_plot=True, size=1.0):
     """Calculates the difference, in sigmas, between an image global
     background and the background around the given coordinates.
     
-    diff = np.abs(bkg_mean1 - bkg_mean2)/np.sqrt(bkg_std1**2 + bkg_std2**2)
+    Examples:
+    diff = np.abs(target_percentile - bkg_mean)/bkg_std
+    diff = np.abs(target_percentile - bkg_median)/bkg_std
     
     Parameters
     ----------
@@ -249,6 +245,8 @@ def check_background(file, ra, dec, r_in=3, r_out=6, method='mean', show_plot=Tr
     method: str, default 'mean'
         Method used to estimate the difference in background.
         Either 'mean' or 'median'. SEP only uses 'mean'.
+    percent: int, default '90'
+        Percentile used for the background around the target.
     show_plot: bool default 'True'
         Whether to show the image with the annulus used.
     size: float, default '1.0'
@@ -256,23 +254,23 @@ def check_background(file, ra, dec, r_in=3, r_out=6, method='mean', show_plot=Tr
     """
     data, header, img_wcs, hdu = extract_image(file)
     
-    # background statistics
+    # sep and astropy background statistics
     sep_mean, sep_std = get_sep_stats(data)
     astro_mean, astro_median, astro_std = get_astropy_stats(data)
-    aperture, target_mean, target_median, target_std = get_target_stats(data, 
-                                                                        img_wcs,
-                                                                        ra, dec, 
-                                                                        r_in, r_out)
+    # target's background statistics using an annulus
+    aperstats = get_target_stats(data, img_wcs, ra, dec, r_in, r_out)
+    aperture = aperstats.aperture
+    target_bkg = np.percentile(aperstats.data_cutout.data, percent)
+    target_std = aperstats.std  # not used as it is not a good statistic
     
-    # calculate difference in background level, in units of sigmas
     assert method in ['mean', 'median'], "Not a valid method!"
     
+    # calculate difference in background level, in units of sigmas
+    sep_diff = np.abs(target_bkg-sep_mean)/sep_std
     if method=='mean':
-        sep_diff = np.abs(target_mean-sep_mean)/np.sqrt(sep_std**2 + target_std)
-        astro_diff = np.abs(target_mean-astro_mean)/np.sqrt(astro_std**2 + target_std)
+        astro_diff = np.abs(target_bkg-astro_mean)/astro_std
     elif method=='median':
-        sep_diff = np.abs(target_median-sep_mean)/np.sqrt(sep_std**2 + target_std)
-        astro_diff = np.abs(target_median-astro_median)/np.sqrt(astro_std**2 + target_std)
+        astro_diff = np.abs(target_bkg-astro_median)/astro_std
     
     print(f'SEP: {np.round(sep_diff, 2)} sigmas')
     print(f'ASTROPY: {np.round(astro_diff, 2)} sigmas')
@@ -280,7 +278,7 @@ def check_background(file, ra, dec, r_in=3, r_out=6, method='mean', show_plot=Tr
     if show_plot is True:
         info_dict = {'sep':[sep_mean, sep_std],
                      'astro':[astro_mean, astro_median, astro_std],
-                     'target':[target_mean, target_median, target_std],
+                     'target':[target_bkg, target_std, percent],
                      'sep_diff':sep_diff,
                      'astro_diff':astro_diff,
                     }
@@ -300,9 +298,9 @@ def check_background(file, ra, dec, r_in=3, r_out=6, method='mean', show_plot=Tr
                 'astro_mean':[astro_mean],
                 'astro_median':[astro_median],
                 'astro_std':[astro_std],
-                'target_mean':[target_mean],
-                'target_median':[target_median],
-                'target_std':[target_std]
+                'annulus_bkg':[target_bkg],
+                'annulus_std':[target_std],
+                'annulus_percent':[percent]
                }
     
     df = pd.DataFrame(out_dict)
@@ -348,6 +346,14 @@ def main(args=None):
                         type=float,
                         help="Outer radius of the annulus."
                         )
+    parser.add_argument("-p",
+                        "--percent",
+                        dest="percent",
+                        action="store",
+                        default=90,
+                        type=int,
+                        help="Annulus percentile."
+                        )
     parser.add_argument("-m"
                         "--method",
                         dest="method",
@@ -358,8 +364,7 @@ def main(args=None):
                         help=("Method used to estimate the difference in background."
                               "Either 'mean' or 'median'. SEP only uses 'mean'.")
                         )
-    parser.add_argument("-p"
-                        "--show_plot",
+    parser.add_argument("--show_plot",
                         dest="show_plot",
                         action="store",
                         default=True,
@@ -378,7 +383,7 @@ def main(args=None):
     
     args = parser.parse_args(args)
     check_background(args.file, args.ra, args.dec, args.r_in, args.r_out, 
-                     args.method, args.show_plot, args.size)
+                     args.method, args.percent, args.show_plot, args.size)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
